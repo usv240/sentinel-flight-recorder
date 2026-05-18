@@ -26,7 +26,7 @@ def _get_legacy_model():
     if _model_legacy is None:
         import google.generativeai as genai_leg
         genai_leg.configure(api_key=os.getenv("GEMINI_API_KEY", ""))
-        _model_legacy = genai_leg.GenerativeModel("gemini-2.0-flash-exp")
+        _model_legacy = genai_leg.GenerativeModel(os.getenv("GEMINI_MODEL", "gemini-2.5-flash"))
     return _model_legacy
 
 
