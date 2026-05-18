@@ -97,6 +97,21 @@ async def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any
     return result
 
 
+# The fivetran-mcp server requires schema_file for every tool call
+# (validates the caller has acknowledged the response structure)
+_TOOL_SCHEMA_FILES = {
+    "list_connections":          "open-api-definitions/connections/list_connections.json",
+    "get_connection":            "open-api-definitions/connections/retrieve_a_connection.json",
+    "create_connection":         "open-api-definitions/connections/create_a_connection.json",
+    "trigger_sync":              "open-api-definitions/connections/run_a_connector_sync.json",
+    "get_connector_schema":      "open-api-definitions/connections/retrieve_a_connection_schema_config.json",
+    "get_sync_history":          "open-api-definitions/connections/retrieve_connector_sync_history.json",
+    "list_destinations":         "open-api-definitions/destinations/list_destinations.json",
+    "get_account_info":          "open-api-definitions/account/get_account_info.json",
+    "list_groups":               "open-api-definitions/groups/list_all_groups.json",
+}
+
+
 async def _call_via_mcp_subprocess(tool_name: str, arguments: dict, server_path: Path) -> Dict:
     from mcp import ClientSession, StdioServerParameters
     from mcp.client.stdio import stdio_client
@@ -113,6 +128,10 @@ async def _call_via_mcp_subprocess(tool_name: str, arguments: dict, server_path:
         args=[str(server_path)],
         env=env,
     )
+
+    # Inject schema_file required by the fivetran-mcp server
+    if tool_name in _TOOL_SCHEMA_FILES and "schema_file" not in arguments:
+        arguments = {**arguments, "schema_file": _TOOL_SCHEMA_FILES[tool_name]}
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
