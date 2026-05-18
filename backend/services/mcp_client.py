@@ -99,16 +99,16 @@ async def call_mcp_tool(tool_name: str, arguments: dict = None) -> Dict[str, Any
 
 # The fivetran-mcp server requires schema_file for every tool call
 # (validates the caller has acknowledged the response structure)
-_TOOL_SCHEMA_FILES = {
-    "list_connections":          "open-api-definitions/connections/list_connections.json",
-    "get_connection":            "open-api-definitions/connections/retrieve_a_connection.json",
-    "create_connection":         "open-api-definitions/connections/create_a_connection.json",
-    "trigger_sync":              "open-api-definitions/connections/run_a_connector_sync.json",
-    "get_connector_schema":      "open-api-definitions/connections/retrieve_a_connection_schema_config.json",
-    "get_sync_history":          "open-api-definitions/connections/retrieve_connector_sync_history.json",
-    "list_destinations":         "open-api-definitions/destinations/list_destinations.json",
-    "get_account_info":          "open-api-definitions/account/get_account_info.json",
-    "list_groups":               "open-api-definitions/groups/list_all_groups.json",
+# Maps our tool names to fivetran-mcp tool names + required schema_file argument
+_MCP_TOOL_MAP = {
+    # our name          → (fivetran-mcp name,            schema_file)
+    "list_connections":  ("list_connections",              "open-api-definitions/connections/list_connections.json"),
+    "get_connection":    ("get_connection_details",        "open-api-definitions/connections/connection_details.json"),
+    "trigger_sync":      ("sync_connection",               "open-api-definitions/connections/sync_connection.json"),
+    "get_connector_schema": ("get_connection_schema_config", "open-api-definitions/connections/connection_schema_config.json"),
+    "get_account_info":  ("get_account_info",              "open-api-definitions/account/get_account_info.json"),
+    "list_groups":       ("list_groups",                   "open-api-definitions/groups/list_all_groups.json"),
+    "list_destinations": ("list_destinations",             "open-api-definitions/destinations/list_destinations.json"),
 }
 
 
@@ -129,9 +129,12 @@ async def _call_via_mcp_subprocess(tool_name: str, arguments: dict, server_path:
         env=env,
     )
 
-    # Inject schema_file required by the fivetran-mcp server
-    if tool_name in _TOOL_SCHEMA_FILES and "schema_file" not in arguments:
-        arguments = {**arguments, "schema_file": _TOOL_SCHEMA_FILES[tool_name]}
+    # Translate tool name and inject schema_file required by fivetran-mcp server
+    if tool_name in _MCP_TOOL_MAP:
+        real_tool, schema_file = _MCP_TOOL_MAP[tool_name]
+        tool_name = real_tool
+        if "schema_file" not in arguments:
+            arguments = {**arguments, "schema_file": schema_file}
 
     async with stdio_client(server_params) as (read, write):
         async with ClientSession(read, write) as session:
@@ -174,9 +177,9 @@ async def _call_via_rest(tool_name: str, arguments: dict) -> Dict:
                 return resp.json()
             return {"connectors": _mock_connectors()}
 
-        if tool_name == "trigger_sync":
-            connector_id = arguments.get("connector_id", "")
-            resp = await client.post(f"{_FT_BASE}/connectors/{connector_id}/sync", headers=_auth())
+        if tool_name in ("trigger_sync", "sync_connection"):
+            connector_id = arguments.get("connector_id", arguments.get("connection_id", ""))
+            resp = await client.post(f"{_FT_BASE}/connections/{connector_id}/sync", headers=_auth())
             return {"triggered": resp.status_code == 200, "connector_id": connector_id}
 
         if tool_name == "get_connector_schema":
