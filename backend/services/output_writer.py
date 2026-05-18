@@ -409,3 +409,59 @@ def write_demo_load(scenario: str, data: Dict[str, Any]) -> str:
         f"File: `{path}`"
     )
     return str(path)
+
+
+# ── Transcript extract output ─────────────────────────────────────────────────
+def write_transcript_extract(transcript: str, decisions: list, source: str = "meeting") -> str:
+    ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    fname = f"transcript_{ts}"
+
+    decisions_md = ""
+    for i, d in enumerate(decisions, 1):
+        decisions_md += f"### {i}. {d.get('decision_text', '')}\n"
+        decisions_md += f"- **Type:** `{d.get('decision_type', 'unknown')}`\n"
+        decisions_md += f"- **Rationale:** {d.get('rationale', 'not stated')}\n"
+        decisions_md += f"- **Participants:** {', '.join(d.get('participants', [])) or 'not stated'}\n"
+        decisions_md += f"- **Confidence:** {d.get('confidence', 0):.0%}\n"
+        decisions_md += f"- **Metrics captured:** {len(d.get('metrics_captured', []))} fields\n"
+        decisions_md += f"- **Decision ID:** `{d.get('decision_id', '?')}`\n\n"
+
+    md = f"""# 📝 SENTINEL — Transcript Extraction
+**Source:** {source}
+**Extracted:** {datetime.now().strftime("%B %d, %Y at %H:%M UTC")}
+**Decisions found:** {len(decisions)}
+
+---
+
+## Original Transcript
+```
+{transcript[:2000]}{"..." if len(transcript) > 2000 else ""}
+```
+
+---
+
+## Extracted Decisions
+
+{decisions_md or "No decisions extracted."}
+
+---
+*Extracted by SENTINEL using Gemini 2.5 Flash. Each decision automatically logged with a Fivetran metrics snapshot.*
+"""
+
+    path = BASE / "decisions" / f"{fname}.md"
+    path.write_text(md, encoding="utf-8")
+    (BASE / "latest_transcript.md").write_text(md, encoding="utf-8")
+
+    json_path = BASE / "decisions" / f"{fname}.json"
+    json_path.write_text(
+        json.dumps({"source": source, "decisions": decisions, "transcript_preview": transcript[:500]}, indent=2, default=str),
+        encoding="utf-8",
+    )
+
+    _log_session(
+        "TRANSCRIPT EXTRACTED",
+        f"**Source:** {source} | **Decisions found:** {len(decisions)}\n\n"
+        + "\n".join(f"- {d.get('decision_text', '')}" for d in decisions[:5])
+        + f"\nFile: `{path}`"
+    )
+    return str(path)

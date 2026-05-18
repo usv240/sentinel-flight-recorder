@@ -113,6 +113,12 @@ class EarlyWarning(BaseModel):
     demo_scenario: Optional[str] = None
 
 
+class TranscriptRequest(BaseModel):
+    transcript: str
+    source: Optional[str] = "meeting"  # meeting | slack | email | doc
+    date: Optional[str] = None
+
+
 class AskRequest(BaseModel):
     question: str
     demo_scenario: Optional[str] = None

@@ -8,7 +8,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .routes import decisions, warnings, trace, connectors, demo, ask
+from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls
 
 app = FastAPI(
     title="SENTINEL — The Business Flight Recorder",
@@ -29,6 +29,8 @@ app.include_router(trace.router, prefix="/api/trace", tags=["trace"])
 app.include_router(connectors.router, prefix="/api/connectors", tags=["connectors"])
 app.include_router(demo.router, prefix="/api/demo", tags=["demo"])
 app.include_router(ask.router, prefix="/api/ask", tags=["ask"])
+app.include_router(transcript.router, prefix="/api/transcript", tags=["transcript"])
+app.include_router(toolcalls.router, prefix="/api/tool-calls", tags=["tool-calls"])
 
 # Health must be registered before the SPA catch-all
 @app.get("/api/health")

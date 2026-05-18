@@ -30,7 +30,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('tab-' + tabId)?.classList.add('active');
 
-  const tabs = ['overview', 'trace', 'decisions', 'ask'];
+  const tabs = ['overview', 'trace', 'decisions', 'ask', 'transcript'];
   tabs.forEach(t => {
     const el = document.getElementById('tab-content-' + t);
     if (el) {
@@ -64,6 +64,7 @@ async function loadScenario(scenario) {
     window._scenarioData = data;
 
     renderOverview(data);
+    updateDataSourceBadge(data.data_source);
     addActivity('gemini', '🟣 Gemini: decision pattern analysis complete');
     addActivity('warning', data.warnings.length > 0
       ? `⚠️ ${data.warnings.length} early warning(s) detected`
@@ -750,10 +751,166 @@ function _sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
 }
 
+/* ── Transcript → Decisions ──────────────────────────────────────────────── */
+function loadSampleTranscript() {
+  document.getElementById('transcript-input').value = `Board Meeting — AcmeSaaS — June 3, 2026
+
+Attendees: CEO (Sarah), CFO (Marcus), VP Sales (Jordan), CTO (Alex)
+
+Sarah: We need to address our unit economics. CAC is up to $1,800 and we need to close the gap with LTV.
+Marcus: I've modeled three options. The cleanest path is a 20% pricing increase across all tiers.
+Jordan: I'm worried about the timing. Our NPS just came back at 31. We have some large accounts with open tickets.
+Sarah: Noted. But we can't keep subsidizing growth. Decision: we move forward with the 20% increase, effective June 15.
+Alex: I'll also need to hire two senior engineers for the reliability work. We've had uptime issues.
+Sarah: Approved. Alex, hire two engineers by end of Q2.
+Marcus: I'll send updated pricing to Jordan's team today.
+
+Action items:
+- Sarah: Approve pricing changes in billing system
+- Jordan: Draft customer communication plan
+- Alex: Post job descriptions by Friday`;
+}
+
+async function extractTranscript() {
+  const text = document.getElementById('transcript-input').value.trim();
+  if (!text) { alert('Paste a transcript first.'); return; }
+
+  const source = document.getElementById('transcript-source').value;
+  const btn = document.getElementById('btn-extract');
+  btn.textContent = '🟣 Extracting...';
+  btn.disabled = true;
+
+  addActivity('gemini', '🟣 Gemini: extract_decisions_from_transcript()');
+
+  try {
+    const res = await fetch(`${API}/api/transcript/extract`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ transcript: text, source }),
+    });
+    const data = await res.json();
+    renderTranscriptResults(data);
+    addActivity('success', `✅ ${data.decisions_logged} decision(s) extracted and logged`);
+  } catch (e) {
+    document.getElementById('transcript-results').innerHTML = `
+      <div class="card" style="border-color:var(--red-border);padding:var(--space-5)">
+        <div class="text-red font-bold">Extraction failed</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:6px">Check backend connection.</div>
+      </div>`;
+  }
+
+  btn.textContent = '🟣 Extract Decisions with Gemini';
+  btn.disabled = false;
+}
+
+function renderTranscriptResults(data) {
+  const el = document.getElementById('transcript-results');
+  if (!data.decisions || !data.decisions.length) {
+    el.innerHTML = `<div class="card" style="padding:var(--space-5)"><div style="color:var(--text-secondary)">${data.message || 'No decisions found.'}</div></div>`;
+    return;
+  }
+
+  const decisionsHtml = data.decisions.map(d => `
+    <div class="card mb-4" style="padding:var(--space-5)">
+      <div class="flex items-center gap-3 mb-3">
+        <span class="badge badge-blue">${d.decision_type}</span>
+        <span class="badge badge-green">${(d.confidence * 100).toFixed(0)}% confidence</span>
+        <span class="mono text-secondary" style="font-size:11px;margin-left:auto">${d.decision_id}</span>
+      </div>
+      <div style="font-size:15px;font-weight:600;margin-bottom:var(--space-2)">${d.decision_text}</div>
+      ${d.rationale ? `<div style="font-size:13px;color:var(--text-secondary);margin-bottom:var(--space-2)"><strong>Rationale:</strong> ${d.rationale}</div>` : ''}
+      ${d.participants?.length ? `<div style="font-size:13px;color:var(--text-secondary)"><strong>Participants:</strong> ${d.participants.join(', ')}</div>` : ''}
+      <div style="margin-top:var(--space-3);font-size:12px;color:var(--green)">✅ ${d.metrics_captured?.length || 0} metrics captured with this decision</div>
+    </div>
+  `).join('');
+
+  el.innerHTML = `
+    <div class="flex items-center gap-3 mb-5">
+      <span class="badge badge-green">✅ ${data.decisions_logged} decision(s) logged</span>
+      <span style="font-size:13px;color:var(--text-secondary)">${data.message}</span>
+    </div>
+    ${decisionsHtml}
+    <div class="card" style="border-color:var(--blue-border);padding:var(--space-4);font-size:13px;color:var(--text-secondary)">
+      💡 Each decision is now in the Decision Log with a full Fivetran metrics snapshot. View in <button class="btn btn-ghost btn-sm" onclick="switchTab('decisions')">Decision Log →</button>
+    </div>
+  `;
+
+  // Reload decision log if on it
+  if (currentScenario && window._scenarioData) {
+    for (const d of data.decisions) {
+      window._scenarioData.decisions.unshift({
+        decision_id: d.decision_id,
+        decision_text: d.decision_text,
+        decision_type: d.decision_type,
+        logged_at: new Date().toISOString(),
+        outcome: 'monitoring',
+        warning_fired: false,
+      });
+    }
+    if (currentTab === 'decisions') renderDecisionsFullTable();
+  }
+}
+
+/* ── Live MCP call log (polls /api/tool-calls/recent) ────────────────────── */
+let _mcpPollLastId = 0;
+let _mcpPollInterval = null;
+
+function startMcpPoll() {
+  if (_mcpPollInterval) return;
+  _mcpPollInterval = setInterval(async () => {
+    try {
+      const res = await fetch(`${API}/api/tool-calls/recent?since=${_mcpPollLastId}&limit=5`);
+      const data = await res.json();
+      if (data.calls?.length) {
+        for (const call of data.calls) {
+          _renderMcpCall(call);
+          _mcpPollLastId = Math.max(_mcpPollLastId, call.id + 1);
+        }
+      }
+    } catch (_) {}
+  }, 1500);
+}
+
+function _renderMcpCall(call) {
+  const feed = document.getElementById('sidebar-mcp-log');
+  if (!feed) return;
+  const sourceLabel = call.source === 'mcp' ? '⚡ MCP' : '🔁 REST';
+  const item = document.createElement('div');
+  item.className = 'mcp-call-item';
+  item.innerHTML = `
+    <span style="color:var(--blue);font-weight:600">${sourceLabel}</span>
+    <span style="color:var(--text-secondary);font-size:11px;margin-left:4px">${call.tool}()</span>
+    ${call.error ? `<span style="color:var(--red);font-size:10px"> ✗</span>` : '<span style="color:var(--green);font-size:10px"> ✓</span>'}
+  `;
+  feed.insertBefore(item, feed.firstChild);
+  while (feed.children.length > 8) feed.removeChild(feed.lastChild);
+
+  // Mirror to main activity feed
+  const source = call.source === 'mcp' ? 'fivetran' : 'fivetran';
+  addActivity(source, `${sourceLabel}: ${call.tool}()`);
+}
+
+/* ── Data source badge ────────────────────────────────────────────────────── */
+function updateDataSourceBadge(dataSource) {
+  const badge = document.getElementById('data-source-badge');
+  if (!badge) return;
+  if (dataSource === 'bigquery_live') {
+    badge.textContent = '🔵 Live Fivetran data';
+    badge.className = 'badge badge-blue';
+    badge.style.display = '';
+  } else {
+    badge.textContent = '📦 Demo data';
+    badge.className = 'badge badge-yellow';
+    badge.style.display = '';
+  }
+}
+
 /* ── Init ─────────────────────────────────────────────────────────────────── */
 document.addEventListener('DOMContentLoaded', () => {
   // Close modals on backdrop click
   document.querySelectorAll('.modal-backdrop').forEach(m => {
     m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
   });
+  // Start live MCP call polling
+  startMcpPoll();
 });

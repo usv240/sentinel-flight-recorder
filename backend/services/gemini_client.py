@@ -173,6 +173,86 @@ Respond as JSON:
         return {"answer": result[:500], "relevant_decision_ids": [], "confidence": 0.5, "sources": []}
 
 
+async def answer_with_scenario_context(question: str, scenario_context: dict) -> dict:
+    """Answer a question about a scenario using full structured context. Gemini always called."""
+    ctx_json = json.dumps(scenario_context, indent=2, default=str)
+
+    prompt = f"""You are SENTINEL — The Business Flight Recorder. Answer the user's question
+using ONLY the structured scenario data provided. Be specific, cite exact numbers and dates.
+
+SCENARIO DATA:
+{ctx_json}
+
+USER QUESTION: {question}
+
+Rules:
+- Always cite specific metrics, dates, and decision IDs from the data
+- If you reference a Pearson r value, explain what it means
+- If asked about what went wrong, trace the exact causal chain
+- If asked about what should have been done differently, give specific, actionable alternatives
+- Mention which Fivetran-connected data source (Stripe, HubSpot, etc.) each metric came from
+- End with a specific recommended action if the question is forward-looking
+- Keep the answer under 200 words
+
+Respond as JSON:
+{{
+  "answer": "your answer here",
+  "relevant_decision_ids": ["DEC-xxx"],
+  "confidence": 0.95,
+  "sources": ["which decisions/metrics you referenced"]
+}}"""
+
+    result = await generate(prompt, as_json=True)
+    try:
+        parsed = json.loads(result)
+        if "answer" not in parsed:
+            parsed = {"answer": result[:500], "relevant_decision_ids": [], "confidence": 0.7, "sources": []}
+        return parsed
+    except Exception:
+        return {"answer": result[:500], "relevant_decision_ids": [], "confidence": 0.7, "sources": []}
+
+
+async def generate_causal_narrative(
+    outcome: str,
+    root_decision: dict,
+    causal_chain: list,
+    data_at_decision: dict,
+    pearson_r: float,
+    p_value: float,
+    days_of_warning: int,
+    corr_metric: str,
+) -> str:
+    chain_text = "\n".join(
+        f"  [{e['date']}] {e['title']}: {e['description']}"
+        for e in causal_chain
+    )
+    prompt = f"""You are SENTINEL — The Business Flight Recorder. Write a 3-sentence causal narrative.
+
+OUTCOME: {outcome}
+ROOT DECISION: {root_decision.get('decision_text')} on {root_decision.get('logged_at', '')[:10]}
+RATIONALE AT TIME: {root_decision.get('rationale', 'not recorded')}
+
+CAUSAL CHAIN:
+{chain_text}
+
+DATA THAT EXISTED AT DECISION TIME:
+{json.dumps(data_at_decision, indent=2)}
+
+STATISTICAL RESULT:
+- Pearson r = {pearson_r} (computed from {corr_metric} time series, {abs(pearson_r)*100:.0f}% correlation)
+- p-value = {p_value} (statistical significance)
+- {days_of_warning} days of warning were available and missed
+
+Write exactly 3 sentences:
+1. What the decision was and what data was being ignored at the time (cite specific numbers)
+2. The Pearson r correlation and what it means for this specific outcome
+3. How many days of warning existed and what the first signal was
+
+Be direct, urgent, data-driven. No hedging. A flight recorder does not soften the truth."""
+
+    return await generate(prompt)
+
+
 async def generate_warning_narrative(
     trigger_metric: str,
     trigger_value: float,

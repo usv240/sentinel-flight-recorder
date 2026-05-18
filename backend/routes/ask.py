@@ -1,172 +1,143 @@
+import json
 from fastapi import APIRouter
 from ..db.schemas import AskRequest
 from ..db import mongodb
-from ..services.gemini_client import answer_why_question
+from ..services.gemini_client import answer_with_scenario_context, answer_why_question
 
 router = APIRouter()
+
+# Full structured scenario facts — used as Gemini context, not as answers
+_SCENARIO_CONTEXT = {
+    "acmesaas": {
+        "company": "AcmeSaaS (fictional B2B SaaS)",
+        "period": "June–July 2026",
+        "decisions": [
+            {
+                "id": "DEC-20260603-PRICE",
+                "date": "2026-06-03",
+                "type": "pricing",
+                "text": "Increase all pricing tiers by 20%",
+                "rationale": "CAC was rising to $1,800 against LTV of $9,200. Unit economics needed improvement.",
+                "alternatives_considered": ["10% increase", "add features instead", "keep pricing"],
+                "metrics_at_time": {
+                    "mrr": 85000, "arr": 1020000, "churn_rate": 0.09, "nps": 31,
+                    "active_customers": 142, "cac": 1800, "ltv": 9200,
+                    "support_tickets_7d": 89, "runway_months": 14.2,
+                },
+                "flags_at_time": [
+                    "NPS=31 is below the 40-point warning threshold",
+                    "Support tickets 89/week is 3.1x company average",
+                    "Customer X: last login 2 days ago, 12 open tickets",
+                ],
+            },
+            {
+                "id": "DEC-20260515-HIRE",
+                "date": "2026-05-15",
+                "type": "hiring",
+                "text": "Hire 3 senior engineers for platform reliability",
+                "rationale": "Uptime SLA at risk, two enterprise customers complaining",
+                "metrics_at_time": {"mrr": 82000, "nps": 38, "churn_rate": 0.07},
+            },
+        ],
+        "outcome": {
+            "description": "Customer X (Acme Enterprise, $120K ARR) churned on July 15, 2026",
+            "arr_lost": 120000,
+            "causal_chain": [
+                "Jun 3: Pricing +20% with NPS=31 (below safe threshold)",
+                "Jun 17: Customer X reduces seats 45→30 (-33%) — first signal",
+                "Jun 28: Customer X ticket: 'evaluating alternatives due to price changes'",
+                "Jul 7: Customer X login frequency drops 60% — critical warning fires",
+                "Jul 15: Customer X cancels — $120K ARR lost",
+            ],
+            "days_of_warning_available": 34,
+            "pearson_r": 0.87,
+            "p_value": 0.003,
+        },
+        "warnings": [
+            {
+                "id": "WARN-20260707-001",
+                "fired": "2026-07-07",
+                "severity": "critical",
+                "message": "Customer X login frequency dropped 60% — traces to June 3 pricing decision",
+                "recommended_action": "CEO call with Customer X within 48 hours. Consider grandfather pricing.",
+            }
+        ],
+        "what_should_have_happened": (
+            "The pricing decision should have been delayed until NPS recovered above 50. "
+            "Alternatives: grandfather existing customers for 6 months, test 10% increase with a cohort, "
+            "or improve product before raising prices."
+        ),
+    },
+    "qwikster": {
+        "company": "Netflix (public company, 2011)",
+        "period": "July–October 2011",
+        "decisions": [
+            {
+                "id": "DEC-20110712-QWIK",
+                "date": "2011-07-12",
+                "type": "pricing",
+                "text": "Announce 60% price increase + split DVD/streaming into separate services (Qwikster)",
+                "rationale": "Allow streaming and DVD businesses to grow independently with separate focus",
+                "metrics_at_time": {
+                    "active_customers": 24600000,
+                    "subscriber_growth_q1": 3300000,
+                    "subscriber_growth_q2": 1800000,
+                    "dvd_revenue_yoy_change": -0.10,
+                    "price_sensitivity_survey": "67% said 60% increase unacceptable",
+                    "churn_rate": 0.042,
+                    "nps": 62,
+                },
+                "flags_at_time": [
+                    "Subscriber growth slowing: Q1 +3.3M → Q2 +1.8M (45% deceleration)",
+                    "DVD segment revenue declining 10% YoY",
+                    "Price sensitivity survey: 67% found 60% increase unacceptable",
+                    "Amazon Prime doubled streaming catalog in Q1 2011",
+                ],
+            }
+        ],
+        "outcome": {
+            "description": "800,000 subscribers lost in Q3 2011 — worst quarter in Netflix history",
+            "subscribers_lost": 800000,
+            "stock_decline_pct": 77,
+            "causal_chain": [
+                "Jul 12: Qwikster announced + 60% price increase",
+                "Jul 13: Netflix blog receives 82,000 angry comments",
+                "Aug 1: Cancellations accelerate — internal projections revised down",
+                "Sep 18: Qwikster formally announced — doubles down on failed strategy",
+                "Oct 10: Qwikster cancelled 23 days after launch — 800K subscribers already lost",
+            ],
+            "days_of_warning_available": 0,
+            "pearson_r": 0.91,
+            "p_value": 0.001,
+        },
+        "warnings": [
+            {
+                "id": "WARN-QWIK-001",
+                "fired": "2011-07-13",
+                "severity": "critical",
+                "message": "Subscriber growth decelerated 45% QoQ. 67% survey rejection. Projecting 600K–1M losses.",
+                "recommended_action": "Halt announcement. A/B test 20% increase with 5% cohort first.",
+            }
+        ],
+        "what_should_have_happened": (
+            "Netflix should have tested a 20% increase with a 5% subscriber cohort before any announcement. "
+            "The service split was an additional strategic error — complexity increases churn risk. "
+            "The 45% subscriber growth deceleration was a clear signal the value proposition was weakening."
+        ),
+    },
+}
 
 
 @router.post("/")
 async def ask_sentinel(req: AskRequest):
     from ..services.output_writer import write_ask
 
-    if req.demo_scenario == "acmesaas":
-        result = _demo_answer(req.question, "acmesaas")
-    elif req.demo_scenario == "qwikster":
-        result = _demo_answer(req.question, "qwikster")
+    if req.demo_scenario in _SCENARIO_CONTEXT:
+        ctx = _SCENARIO_CONTEXT[req.demo_scenario]
+        result = await answer_with_scenario_context(req.question, ctx)
     else:
         decisions = await mongodb.get_decisions(limit=20)
         result = await answer_why_question(req.question, decisions)
 
     write_ask(req.question, result, req.demo_scenario)
     return result
-
-
-def _demo_answer(question: str, scenario: str) -> dict:
-    q = question.lower()
-
-    if any(w in q for w in ["different", "should have", "mistake", "wrong"]):
-        answers = {
-            "acmesaas": (
-                "The AcmeSaaS pricing decision should have been delayed until NPS recovered above 50. "
-                "At decision time, NPS was 31 — 9 points below the 40-point warning threshold. "
-                "The data that existed on June 3 predicted a 0.87 Pearson r causal correlation with churn. "
-                "The recommended alternative: grandfather existing customers at current pricing for 6 months, "
-                "and test the price increase with a 10% cohort before full rollout."
-            ),
-            "qwikster": (
-                "Netflix should have tested a 20% increase on a small cohort before announcing a 60% increase. "
-                "Subscriber growth had already decelerated 45% QoQ — a classic price sensitivity signal. "
-                "The Qwikster split was an additional mistake: separating streaming from DVD compounded confusion "
-                "and destroyed brand trust. SENTINEL would have recommended: delay announcement, "
-                "A/B test 20% increase with 5% of subscribers, monitor for 30 days before full rollout."
-            ),
-        }
-        return {
-            "answer": answers.get(scenario, "See the causal trace for specific recommendations."),
-            "relevant_decision_ids": [],
-            "confidence": 0.91,
-            "sources": [f"Causal trace — {scenario}"],
-        }
-
-    if scenario == "acmesaas":
-        if any(w in q for w in ["price", "pricing", "increase", "why did we raise"]):
-            return {
-                "answer": (
-                    "On June 3, 2026, the decision to increase pricing by 20% was made "
-                    "to improve unit economics — CAC had risen to $1,800 against an LTV of $9,200. "
-                    "However, at the time of that decision, NPS stood at 31 (below the 40-point "
-                    "safe threshold) and Customer X was already filing 3x the average support "
-                    "ticket volume. SENTINEL would have recommended delaying the increase until "
-                    "NPS recovered above 50."
-                ),
-                "relevant_decision_ids": ["DEC-20260603-PRICE"],
-                "confidence": 0.94,
-                "sources": ["DEC-20260603-PRICE (June 3, 2026) — Pricing decision with full metrics snapshot"],
-            }
-        if any(w in q for w in ["churn", "customer x", "lost", "cancel"]):
-            return {
-                "answer": (
-                    "Customer X churned on July 15, 2026, resulting in $120,000 ARR lost. "
-                    "The causal trace traces this to the June 3 pricing decision. "
-                    "SENTINEL detected the first warning signal on June 17 (seat reduction) "
-                    "and fired a critical warning on July 7 — 34 days after the root decision. "
-                    "The recommended action was an executive call within 48 hours; "
-                    "that call was not made."
-                ),
-                "relevant_decision_ids": ["DEC-20260603-PRICE"],
-                "confidence": 0.87,
-                "sources": ["Causal trace TRACE-ACME-001", "Warning WARN-20260707-001"],
-            }
-
-    if scenario == "qwikster":
-        if any(w in q for w in ["qwikster", "split", "dvd", "price", "why"]):
-            return {
-                "answer": (
-                    "On July 12, 2011, Netflix announced a 60% effective price increase by splitting "
-                    "streaming and DVD into two separate services. The decision rationale was to allow "
-                    "each business to grow independently. However, subscriber growth had already "
-                    "decelerated 45% QoQ, and an internal survey showed 67% of subscribers called "
-                    "the increase 'unacceptable'. SENTINEL would have flagged this data the following day."
-                ),
-                "relevant_decision_ids": ["DEC-20110712-QWIK"],
-                "confidence": 0.91,
-                "sources": ["DEC-20110712-QWIK", "Netflix Q3 2011 earnings report (public)"],
-            }
-
-    if any(w in q for w in ["pearson", "correlation", "r =", "r=", "causal", "statistic"]):
-        return {
-            "answer": (
-                "SENTINEL uses Pearson r correlation to measure how strongly a business decision "
-                "predicted a downstream outcome. The calculation works on the BigQuery metrics history "
-                "synced via Fivetran MCP: SENTINEL compares the decision timestamp against the trajectory "
-                "of outcome metrics over the following 14-90 days.\n\n"
-                "r = 1.0 means perfect causal prediction. r > 0.7 is a strong signal. "
-                "r = 0.87 for the AcmeSaaS pricing decision means: '87% of the churn trajectory "
-                "was predictable from the data that existed on June 3.' "
-                "The p-value (0.003) means there is only a 0.3% chance this correlation is random."
-            ),
-            "relevant_decision_ids": [],
-            "confidence": 0.99,
-            "sources": ["SciPy pearsonr", "BigQuery metrics history via Fivetran"],
-        }
-
-    if any(w in q for w in ["warning", "early warning", "active", "alert"]):
-        s_data = {
-            "acmesaas": "AcmeSaaS has 1 active critical warning: Customer X login frequency dropped 60%. This traces to the June 3 pricing decision (r=0.87). Recommended action: CEO call within 48 hours.",
-            "qwikster": "The Netflix Qwikster scenario shows 1 critical warning fired on July 13, 2011 — the day after the announcement. 800K subscribers were at risk. SENTINEL recommended halting the announcement and A/B testing first.",
-        }
-        return {
-            "answer": s_data.get(scenario, "No active warnings detected. All metrics are within normal ranges."),
-            "relevant_decision_ids": [],
-            "confidence": 0.92,
-            "sources": [f"Warning engine — pattern match against {scenario} history"],
-        }
-
-    if any(w in q for w in ["fivetran", "mcp", "connector", "sync", "data source"]):
-        return {
-            "answer": (
-                "SENTINEL uses the Fivetran MCP (Model Context Protocol) server to connect all data sources. "
-                "Before every decision is logged, the agent calls:\n"
-                "1. fivetran.list_connectors() — discovers all connected sources\n"
-                "2. fivetran.trigger_sync() — forces a fresh data pull\n"
-                "3. fivetran.get_connector_schema() — maps available metrics\n\n"
-                "The synced data lands in BigQuery, where SENTINEL queries it to build the metrics snapshot "
-                "attached to every decision. This makes every tool call auditable — you can see exactly "
-                "which Fivetran connector provided which metric."
-            ),
-            "relevant_decision_ids": [],
-            "confidence": 0.99,
-            "sources": ["Fivetran MCP server", "BigQuery destination"],
-        }
-
-    if any(w in q for w in ["how", "work", "explain", "what is", "architecture", "stack"]):
-        return {
-            "answer": (
-                "SENTINEL is a 5-step business flight recorder:\n\n"
-                "1. Fivetran MCP syncs all connected data sources (Stripe, HubSpot, Salesforce)\n"
-                "2. A full metrics snapshot is frozen at the exact moment of each decision\n"
-                "3. Gemini 2.5 Flash analyzes the decision and calculates Pearson r correlation\n"
-                "4. The warning engine pattern-matches current metrics against historical bad-outcome patterns\n"
-                "5. When outcomes go wrong, the causal tracer shows the exact chain with days of warning\n\n"
-                "Google Cloud Agent Builder orchestrates the full workflow, making every tool call visible."
-            ),
-            "relevant_decision_ids": [],
-            "confidence": 0.99,
-            "sources": ["SENTINEL architecture", "Google Cloud Agent Builder"],
-        }
-
-    return {
-        "answer": (
-            "Based on the decision log, I can see context relevant to your question. "
-            "For best results, try:\n"
-            "• 'Why did we raise prices?' — traces the pricing decision\n"
-            "• 'What caused the churn spike?' — full causal chain analysis\n"
-            "• 'Explain the Pearson correlation score' — how SENTINEL measures causation\n"
-            "• 'How does Fivetran MCP work here?' — technical architecture\n"
-            "• 'What are the active early warnings?' — current alert status"
-        ),
-        "relevant_decision_ids": [],
-        "confidence": 0.4,
-        "sources": [],
-    }

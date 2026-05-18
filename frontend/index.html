@@ -214,6 +214,12 @@
       <button class="nav-item" onclick="switchTab('ask')" id="tab-ask">
         <span class="nav-icon">💬</span> Ask SENTINEL
       </button>
+      <button class="nav-item" onclick="switchTab('transcript')" id="tab-transcript">
+        <span class="nav-icon">📝</span> Transcript
+      </button>
+
+      <div class="nav-section-label">Live MCP Calls</div>
+      <div id="sidebar-mcp-log" class="mcp-log-feed"></div>
 
       <div class="nav-section-label">Agent Activity</div>
       <div id="sidebar-activity" class="activity-feed" style="font-size:12px">
@@ -261,6 +267,7 @@
             <small id="overview-period">June–July 2026</small>
           </div>
           <div class="page-actions">
+            <span id="data-source-badge" class="badge badge-blue" style="display:none"></span>
             <button class="btn btn-ghost btn-sm" onclick="runAgentCheck()">
               🔄 Run Agent Check
             </button>
@@ -399,6 +406,58 @@
               <tbody id="decisions-full-tbody"></tbody>
             </table>
           </div>
+        </div>
+      </div>
+
+      <!-- Tab: Transcript → Decisions -->
+      <div id="tab-content-transcript" class="hidden">
+        <div class="page-header">
+          <div>
+            <div class="page-title">📝 Transcript → Decisions</div>
+            <small style="color:var(--text-secondary)">Paste any meeting transcript, Slack thread, or doc — Gemini extracts every decision automatically</small>
+          </div>
+        </div>
+        <div class="p-8" style="max-width:860px">
+
+          <div class="card mb-6" style="border-color:var(--blue-border);padding:var(--space-5)">
+            <div class="badge badge-blue mb-3">🟣 Gemini-powered extraction</div>
+            <p style="font-size:14px;color:var(--text-secondary);margin-bottom:0">
+              SENTINEL reads unstructured text and extracts every business decision — with type, rationale, and participants.
+              Each extracted decision is automatically logged with a live Fivetran metrics snapshot. No manual entry required.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Source type</label>
+            <select class="form-select" id="transcript-source" style="max-width:200px">
+              <option value="meeting">Meeting transcript</option>
+              <option value="slack">Slack thread</option>
+              <option value="email">Email thread</option>
+              <option value="doc">Strategy doc</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">Paste your text</label>
+            <textarea class="form-textarea" id="transcript-input" style="min-height:220px;font-size:13px;font-family:var(--font-mono)"
+              placeholder="Paste meeting notes, a Slack thread, an email, or any document here...
+
+Example:
+— CEO: We need to improve unit economics. I propose raising prices 15–20% across all tiers.
+— VP Sales: I'm concerned about churn risk, NPS is already low.
+— CFO: Agreed on the increase. Let's also hire 2 more engineers for reliability.
+— Decision: Proceed with 20% price increase starting June 1. Engineering hiring approved."></textarea>
+          </div>
+
+          <div class="flex gap-3">
+            <button class="btn btn-danger" onclick="extractTranscript()" id="btn-extract">
+              🟣 Extract Decisions with Gemini
+            </button>
+            <button class="btn btn-ghost" onclick="loadSampleTranscript()">Load sample transcript</button>
+          </div>
+
+          <div id="transcript-results" class="mt-6"></div>
+
         </div>
       </div>
 
