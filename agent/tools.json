@@ -1,0 +1,127 @@
+{
+  "tools": [
+    {
+      "name": "list_fivetran_connectors",
+      "description": "List all connected Fivetran data sources. Always call this first to show which data sources are available. This makes the MCP usage visible.",
+      "parameters": {
+        "type": "object",
+        "properties": {},
+        "required": []
+      }
+    },
+    {
+      "name": "trigger_fivetran_sync",
+      "description": "Force a fresh data sync on a Fivetran connector before taking a metrics snapshot. Use before logging any decision to ensure the snapshot is current.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "connector_id": {
+            "type": "string",
+            "description": "The Fivetran connector ID to sync"
+          }
+        },
+        "required": ["connector_id"]
+      }
+    },
+    {
+      "name": "get_current_metrics",
+      "description": "Pull the current metrics snapshot from all connected Fivetran sources via BigQuery. Returns MRR, churn rate, NPS, CAC, LTV, support tickets, runway.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "demo_scenario": {
+            "type": "string",
+            "description": "Optional: load demo data instead of live data. Values: 'acmesaas', 'qwikster'"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "log_decision",
+      "description": "Record a business decision with a full snapshot of all current Fivetran metrics at this exact moment.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "decision_text": {
+            "type": "string",
+            "description": "What was decided"
+          },
+          "decision_type": {
+            "type": "string",
+            "enum": ["pricing", "hiring", "product", "strategy", "operational"],
+            "description": "Category of the decision"
+          },
+          "rationale": {
+            "type": "string",
+            "description": "Why this decision was made"
+          },
+          "alternatives_considered": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Other options that were considered"
+          }
+        },
+        "required": ["decision_text", "decision_type"]
+      }
+    },
+    {
+      "name": "trace_causal_chain",
+      "description": "Given a bad outcome, trace it back to its root decision. Calculates Pearson correlation and shows the exact data that predicted the outcome.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "outcome_description": {
+            "type": "string",
+            "description": "What went wrong"
+          },
+          "outcome_first_observed": {
+            "type": "string",
+            "description": "ISO date when the problem first appeared"
+          },
+          "affected_metric": {
+            "type": "string",
+            "description": "Which metric changed (e.g. churn_rate, mrr, nps)"
+          },
+          "demo_scenario": {
+            "type": "string",
+            "description": "Optional: use demo data. Values: 'acmesaas', 'qwikster'"
+          }
+        },
+        "required": ["outcome_description", "affected_metric"]
+      }
+    },
+    {
+      "name": "check_early_warnings",
+      "description": "Check if current metrics match any patterns that preceded bad outcomes in the decision history. Fire alerts if patterns are detected.",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "demo_scenario": {
+            "type": "string",
+            "description": "Optional: use demo data. Values: 'acmesaas', 'qwikster'"
+          }
+        },
+        "required": []
+      }
+    },
+    {
+      "name": "ask_decision_log",
+      "description": "Answer questions about the decision log. 'Why do we price this way?' 'What caused the churn spike?' 'What data existed when we made the hiring decision?'",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "question": {
+            "type": "string",
+            "description": "The question to answer from the decision log"
+          },
+          "demo_scenario": {
+            "type": "string",
+            "description": "Optional: use demo data"
+          }
+        },
+        "required": ["question"]
+      }
+    }
+  ]
+}

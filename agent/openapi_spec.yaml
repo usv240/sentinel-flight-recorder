@@ -1,0 +1,234 @@
+openapi: 3.0.0
+info:
+  title: SENTINEL API
+  description: The Business Flight Recorder — record decisions, trace outcomes, fire early warnings
+  version: 1.0.0
+servers:
+  - url: https://sentinel-38381883054.us-central1.run.app
+    description: Production (Cloud Run)
+  - url: http://localhost:8100
+    description: Local development
+
+paths:
+  /api/connectors/list:
+    get:
+      operationId: list_fivetran_connectors
+      summary: List all connected Fivetran data sources
+      description: Shows all Fivetran connectors with their sync status. Always call this first to show which data sources are available.
+      parameters:
+        - name: demo_mode
+          in: query
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: List of connectors
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  connectors:
+                    type: array
+                    items:
+                      type: object
+                  count:
+                    type: integer
+
+  /api/connectors/{connector_id}/sync:
+    post:
+      operationId: trigger_fivetran_sync
+      summary: Force a fresh Fivetran sync
+      description: Triggers a data refresh before snapshotting metrics. Call before logging any decision.
+      parameters:
+        - name: connector_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Sync triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triggered:
+                    type: boolean
+                  connector_id:
+                    type: string
+
+  /api/decisions/log:
+    post:
+      operationId: log_decision
+      summary: Record a business decision with full Fivetran metrics snapshot
+      description: Logs a decision and automatically captures all current metrics from Fivetran-connected sources at this exact moment.
+      parameters:
+        - name: demo_scenario
+          in: query
+          schema:
+            type: string
+            enum: [acmesaas, qwikster]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision_text, decision_type]
+              properties:
+                decision_text:
+                  type: string
+                  description: What was decided
+                decision_type:
+                  type: string
+                  enum: [pricing, hiring, product, strategy, operational]
+                rationale:
+                  type: string
+                  description: Why this decision was made
+                alternatives_considered:
+                  type: array
+                  items:
+                    type: string
+      responses:
+        '200':
+          description: Decision recorded
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decision_id:
+                    type: string
+                  metrics_captured:
+                    type: array
+                    items:
+                      type: string
+                  flags:
+                    type: array
+                    items:
+                      type: string
+
+  /api/decisions/list:
+    get:
+      operationId: list_decisions
+      summary: List all logged decisions
+      parameters:
+        - name: demo_scenario
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Decision log
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions:
+                    type: array
+                  total:
+                    type: integer
+
+  /api/warnings/active:
+    get:
+      operationId: check_early_warnings
+      summary: Check for active early warnings
+      description: Pattern-matches current metrics against historical bad-outcome patterns. Returns alerts if patterns are detected.
+      parameters:
+        - name: demo_scenario
+          in: query
+          schema:
+            type: string
+            enum: [acmesaas, qwikster]
+      responses:
+        '200':
+          description: Active warnings
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  warnings:
+                    type: array
+
+  /api/trace/demo/{scenario}:
+    get:
+      operationId: trace_causal_chain_demo
+      summary: Trace the causal chain for a demo scenario
+      description: Shows the full causal trace with Pearson correlation, days of warning, and split-screen data comparison.
+      parameters:
+        - name: scenario
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [acmesaas, qwikster]
+      responses:
+        '200':
+          description: Causal trace result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  outcome_description:
+                    type: string
+                  pearson_r:
+                    type: number
+                  days_of_warning:
+                    type: integer
+                  narrative:
+                    type: string
+                  causal_chain:
+                    type: array
+
+  /api/ask/:
+    post:
+      operationId: ask_sentinel
+      summary: Ask SENTINEL a question about the decision log
+      description: Answer questions like "Why did we raise prices?" or "What caused the churn spike?"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [question]
+              properties:
+                question:
+                  type: string
+                demo_scenario:
+                  type: string
+                  enum: [acmesaas, qwikster]
+      responses:
+        '200':
+          description: Answer from SENTINEL
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                  confidence:
+                    type: number
+                  sources:
+                    type: array
+                    items:
+                      type: string
+
+  /api/demo/scenarios:
+    get:
+      operationId: list_demo_scenarios
+      summary: List available demo scenarios
+      responses:
+        '200':
+          description: Demo scenarios
+          content:
+            application/json:
+              schema:
+                type: object

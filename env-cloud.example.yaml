@@ -1,0 +1,16 @@
+﻿# Copy this to env-cloud.yaml and fill in your values
+# NEVER commit env-cloud.yaml with real credentials
+MONGODB_URI: "mongodb+srv://USER:PASS@cluster.mongodb.net/sentinel_db"
+MONGODB_DATABASE: "sentinel_db"
+GOOGLE_PROJECT_ID: "your-gcp-project-id"
+GOOGLE_LOCATION: "us-central1"
+GEMINI_MODEL: "gemini-2.5-flash"
+GEMINI_API_KEY: "your-gemini-api-key"
+FIVETRAN_API_KEY: "your-fivetran-api-key"
+FIVETRAN_API_SECRET: "your-fivetran-api-secret"
+FIVETRAN_GROUP_ID: "your-group-id"
+FIVETRAN_ALLOW_WRITES: "true"
+BIGQUERY_DATASET_PREFIX: "google_sheets"
+APP_PORT: "8080"
+DEMO_MODE: "false"
+OUTPUT_DIR: "outputs/sentinel"
