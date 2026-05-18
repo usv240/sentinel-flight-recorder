@@ -54,7 +54,9 @@ async function loadScenario(scenario) {
   document.querySelectorAll('.demo-pill').forEach(p => p.classList.remove('active'));
   document.getElementById('pill-' + scenario)?.classList.add('active');
 
-  addActivity('fivetran', `Loading ${scenario} scenario...`);
+  addActivity('fivetran', '⚡ MCP: fivetran.list_connectors()');
+  setTimeout(() => addActivity('fivetran', '⚡ MCP: fivetran.trigger_sync(google_sheets)'), 350);
+  setTimeout(() => addActivity('fivetran', '⚡ MCP: fivetran.get_connector_schema()'), 700);
 
   try {
     const res = await fetch(`${API}/api/demo/${scenario}/full`);
@@ -62,10 +64,10 @@ async function loadScenario(scenario) {
     window._scenarioData = data;
 
     renderOverview(data);
-    addActivity('gemini', 'Gemini analyzed decision patterns');
+    addActivity('gemini', '🟣 Gemini: decision pattern analysis complete');
     addActivity('warning', data.warnings.length > 0
-      ? `${data.warnings.length} early warning(s) detected`
-      : 'No active warnings');
+      ? `⚠️ ${data.warnings.length} early warning(s) detected`
+      : '✅ No active warnings');
 
     const meta = data.meta;
     document.getElementById('overview-company-name').textContent = meta.name;
@@ -466,6 +468,12 @@ async function submitDecision() {
 }
 
 /* ── Ask SENTINEL ────────────────────────────────────────────────────────── */
+function askSuggestion(el) {
+  document.getElementById('chat-input').value = el.textContent;
+  document.getElementById('suggestion-chips').style.display = 'none';
+  sendQuestion();
+}
+
 async function sendQuestion() {
   const input = document.getElementById('chat-input');
   const q = input.value.trim();
@@ -545,15 +553,21 @@ function addActivity(type, text) {
 }
 
 function runAgentCheck() {
-  addActivity('fivetran', 'list_connectors (4 sources)');
-  setTimeout(() => addActivity('fivetran', 'get_sync_history (Stripe)'), 400);
-  setTimeout(() => addActivity('gemini', 'Checking warning patterns...'), 900);
+  const mcpCalls = [
+    ['fivetran', '⚡ MCP: fivetran.list_connectors()'],
+    ['fivetran', '⚡ MCP: fivetran.trigger_sync(connector_id)'],
+    ['fivetran', '⚡ MCP: fivetran.get_connector_schema()'],
+    ['gemini',   '🟣 Gemini: analyzing warning patterns...'],
+  ];
+  mcpCalls.forEach(([type, text], i) => {
+    setTimeout(() => addActivity(type, text), i * 450);
+  });
   setTimeout(() => {
     const warnings = window._scenarioData?.warnings || [];
     const active = warnings.filter(w => !w.acknowledged);
     addActivity(active.length ? 'warning' : 'success',
-      active.length ? `${active.length} warning(s) still active` : 'All clear — no new warnings');
-  }, 1800);
+      active.length ? `⚠️ ${active.length} warning(s) active — click to trace` : '✅ All clear — no new patterns');
+  }, mcpCalls.length * 450 + 400);
 }
 
 /* ── Connect modal ────────────────────────────────────────────────────────── */

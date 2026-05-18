@@ -639,13 +639,14 @@ small { font-size: 12px; color: var(--text-secondary); }
 .activity-time { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
 
 /* ── Landing Page ────────────────────────────────────────────────────────── */
+.view.active { display: block; }
+#view-landing.active { overflow-y: auto; }
 .landing {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: var(--space-8);
+  padding: 80px var(--space-8) var(--space-16);
   text-align: center;
   background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,59,48,0.06) 0%, transparent 70%);
 }
@@ -904,6 +905,225 @@ small { font-size: 12px; color: var(--text-secondary); }
 .truncate   { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .hidden     { display: none !important; }
 
+/* ── Landing Stats Strip ─────────────────────────────────────────────────── */
+.landing-stats-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-6);
+  margin-top: var(--space-10);
+  padding: var(--space-6) var(--space-8);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  width: 100%;
+  max-width: 760px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+.lstat { text-align: center; }
+.lstat-num {
+  font-size: 28px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+.lstat-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 4px;
+}
+.lstat-divider {
+  width: 1px;
+  height: 40px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
+/* ── How It Works ────────────────────────────────────────────────────────── */
+.how-it-works {
+  width: 100%;
+  max-width: 1000px;
+  margin-top: var(--space-16);
+  text-align: center;
+}
+.section-eyebrow {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--blue);
+  margin-bottom: var(--space-3);
+}
+.section-title {
+  font-size: clamp(22px, 3vw, 32px);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  margin-bottom: var(--space-8);
+}
+
+.steps-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0;
+  width: 100%;
+}
+.step-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  position: relative;
+  transition: all var(--transition-spring);
+}
+.step-card:hover {
+  border-color: var(--blue-border);
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-md);
+}
+.step-number {
+  position: absolute;
+  top: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 22px; height: 22px;
+  background: var(--blue);
+  color: white;
+  border-radius: 50%;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+.step-icon-lg {
+  font-size: 28px;
+  margin-bottom: var(--space-3);
+  margin-top: var(--space-2);
+}
+.step-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+.step-desc {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin-bottom: var(--space-3);
+}
+.step-tech {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--blue);
+  background: var(--blue-dim);
+  border: 1px solid var(--blue-border);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  margin-top: auto;
+}
+.step-arrow {
+  font-size: 20px;
+  color: var(--text-tertiary);
+  padding: var(--space-4) 6px;
+  padding-top: 50px;
+  flex-shrink: 0;
+}
+
+/* ── Tech Stack Section ──────────────────────────────────────────────────── */
+.tech-stack-section {
+  width: 100%;
+  max-width: 1000px;
+  margin-top: var(--space-16);
+  text-align: center;
+}
+.tech-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-4);
+  text-align: left;
+}
+.tech-card {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  transition: all var(--transition-spring);
+}
+.tech-card:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-sm);
+}
+.tech-logo { font-size: 24px; margin-bottom: var(--space-3); }
+.tech-name {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: var(--space-2);
+  color: var(--text-primary);
+}
+.tech-desc {
+  font-size: 13px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+/* ── Ask SENTINEL suggestion chips ──────────────────────────────────────── */
+.suggestion-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-6);
+  border-top: 1px solid var(--border);
+}
+.suggestion-chip {
+  padding: 6px 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-full);
+  font-size: 13px;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition: all var(--transition);
+  white-space: nowrap;
+}
+.suggestion-chip:hover {
+  background: var(--blue-dim);
+  border-color: var(--blue-border);
+  color: var(--blue);
+}
+
+/* ── Pearson tooltip ─────────────────────────────────────────────────────── */
+.pearson-explain {
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-4);
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: var(--space-4);
+  line-height: 1.6;
+}
+.pearson-explain strong { color: var(--text-primary); }
+
+/* ── MCP call trace (agent log) ──────────────────────────────────────────── */
+.mcp-call {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  color: var(--blue);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.mcp-call::before { content: '▶'; font-size: 9px; opacity: 0.6; }
+
 /* ── Responsive ──────────────────────────────────────────────────────────── */
 @media (max-width: 768px) {
   .app-shell { grid-template-columns: 1fr; }
@@ -912,4 +1132,8 @@ small { font-size: 12px; color: var(--text-secondary); }
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .page-header { padding: var(--space-4); }
   .trace-view { padding: var(--space-4); }
+  .steps-row { flex-direction: column; }
+  .step-arrow { display: none; }
+  .lstat-divider { display: none; }
+  .tech-grid { grid-template-columns: 1fr; }
 }
