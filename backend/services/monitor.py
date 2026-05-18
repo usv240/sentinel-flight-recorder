@@ -68,9 +68,9 @@ async def run_monitoring_cycle():
 
         # ── Step 2: Fivetran MCP — trigger sync on active connectors ───────
         synced = 0
-        for conn in connectors[:3]:  # limit to 3 to avoid rate limits
+        for conn in connectors[:2]:  # limit to 2 to avoid rate limits
             cid = conn.get("id", "")
-            if cid and not cid.startswith("mock_"):
+            if cid and not cid.startswith("mock_") and cid != "":
                 log.info(f"MCP: trigger_sync({cid})")
                 await trigger_sync(cid)
                 synced += 1

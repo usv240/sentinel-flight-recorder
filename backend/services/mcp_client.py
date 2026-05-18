@@ -232,7 +232,8 @@ async def list_connectors() -> List[Dict]:
 
 
 async def trigger_sync(connector_id: str) -> bool:
-    result = await call_mcp_tool("trigger_sync", {"connector_id": connector_id})
+    # fivetran-mcp uses connection_id, not connector_id
+    result = await call_mcp_tool("trigger_sync", {"connection_id": connector_id})
     return result.get("triggered", False)
 
 
