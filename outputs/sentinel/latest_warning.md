@@ -1,35 +1,35 @@
-# 🔴 SENTINEL — Early Warning
-**Warning ID:** `WARN-QWIK-001`
-**Severity:** `CRITICAL`
-**Fired:** May 18, 2026 at 14:17 UTC
+# 🟠 SENTINEL — Early Warning
+**Warning ID:** `WARN-20260518-C8D484`
+**Severity:** `HIGH`
+**Fired:** May 18, 2026 at 18:56 UTC
 **Auto-detected:** Yes (pattern matching)
 
 ---
 
 ## Warning
-> Subscriber growth decelerated 45% QoQ before the price announcement. Internal survey showed 67% subscriber rejection rate of proposed increase. Combined with a service split, SENTINEL projects 600K–1M subscriber losses in Q3.
+> **WARNING:** Support tickets over the last 7 days have increased by 3400%. The root decision for this surge is unknown, but historical patterns show that support tickets 3x average combined with a login frequency drop reliably leads to churn within 21 days.
 
 ---
 
 ## Details
 | Field | Value |
 |-------|-------|
-| Trigger metric | `subscriber_growth_rate` |
-| Trigger value | -45% |
-| Causal confidence | **91%** |
-| Root decision ID | `DEC-20110712-QWIK` |
-| Days since root decision | 1 days |
+| Trigger metric | `support_tickets_7d` |
+| Trigger value | 3400% |
+| Causal confidence | **0%** |
+| Root decision ID | `unknown` |
+| Days since root decision | unknown days |
 
 ---
 
 ## Recommended Action
-**Halt announcement. A/B test 20% increase with 5% cohort first.**
+**Review decision log**
 
 ---
 
 ## Pattern Description
 This warning was triggered because current metrics match a pattern that preceded
-bad outcomes in 91% of historical cases with similar signals.
+bad outcomes in 0% of historical cases with similar signals.
 
 ---
 *SENTINEL fired this warning automatically based on pattern matching against the decision history.*

@@ -2,10 +2,12 @@ $PROJECT_ID = "orace-agent"
 $REGION = "us-central1"
 $SERVICE = "sentinel"
 $IMAGE = "gcr.io/" + $PROJECT_ID + "/" + $SERVICE
+$PARENT = Split-Path -Parent $PSScriptRoot
 
-Write-Host "Deploying SENTINEL to Cloud Run (separate from ORACLE)..."
+Write-Host "Deploying SENTINEL from parent directory (includes fivetran-mcp)..."
 
-gcloud builds submit --tag $IMAGE --project $PROJECT_ID
+# Build from parent directory so Dockerfile can COPY fivetran-mcp/
+gcloud builds submit $PARENT --tag $IMAGE --project $PROJECT_ID
 if ($LASTEXITCODE -ne 0) { Write-Host "Build failed."; exit 1 }
 
 gcloud run deploy $SERVICE --image $IMAGE --platform managed --region $REGION --allow-unauthenticated --port 8080 --memory 512Mi --env-vars-file env-cloud.yaml --project $PROJECT_ID

@@ -54,14 +54,18 @@ async function loadScenario(scenario) {
   document.querySelectorAll('.demo-pill').forEach(p => p.classList.remove('active'));
   document.getElementById('pill-' + scenario)?.classList.add('active');
 
-  addActivity('fivetran', '⚡ MCP: fivetran.list_connectors()');
-  setTimeout(() => addActivity('fivetran', '⚡ MCP: fivetran.trigger_sync(google_sheets)'), 350);
-  setTimeout(() => addActivity('fivetran', '⚡ MCP: fivetran.get_connector_schema()'), 700);
+  // Show skeleton while Gemini + Fivetran run
+  _showDashboardSkeleton();
+
+  addActivity('fivetran', '⚡ MCP: fivetran.list_connections()');
+  setTimeout(() => addActivity('fivetran', '⚡ MCP: fivetran.trigger_sync(connector)'), 350);
+  setTimeout(() => addActivity('gemini', '🟣 Gemini 3: computing causal analysis...'), 700);
 
   try {
     const res = await fetch(`${API}/api/demo/${scenario}/full`);
     const data = await res.json();
     window._scenarioData = data;
+    _hideDashboardSkeleton();
 
     renderOverview(data);
     updateDataSourceBadge(data.data_source);
@@ -74,9 +78,28 @@ async function loadScenario(scenario) {
     document.getElementById('overview-company-name').textContent = meta.name;
     document.getElementById('overview-period').textContent = meta.period;
   } catch (e) {
+    _hideDashboardSkeleton();
     addActivity('warning', 'Using local demo data');
     renderOverview(_getLocalDemo(scenario));
   }
+}
+
+function _showDashboardSkeleton() {
+  const el = document.getElementById('stats-grid');
+  if (!el) return;
+  el.innerHTML = Array(4).fill(0).map(() =>
+    `<div class="stat-card skeleton-stat skeleton"></div>`
+  ).join('');
+  const tbody = document.getElementById('decisions-tbody');
+  if (tbody) tbody.innerHTML = Array(3).fill(0).map(() =>
+    `<tr><td colspan="5"><div class="skeleton skeleton-row"></div></td></tr>`
+  ).join('');
+  const warn = document.getElementById('warning-section');
+  if (warn) warn.innerHTML = `<div class="skeleton skeleton-card"></div>`;
+}
+
+function _hideDashboardSkeleton() {
+  // Skeletons are replaced by real content when renderOverview() runs
 }
 
 function switchScenario(scenario) {
@@ -483,7 +506,14 @@ async function sendQuestion() {
 
   appendBubble('user', q);
 
-  const thinking = appendBubble('sentinel', `<div class="sentinel-label">✈️ SENTINEL</div><div class="thinking-dots"><span>•</span><span>•</span><span>•</span></div>`);
+  const thinking = appendBubble('sentinel', `
+    <div class="sentinel-label">✈️ SENTINEL — Gemini 3</div>
+    <div class="gemini-thinking">
+      <div class="gemini-thinking-dot"></div>
+      <div class="gemini-thinking-dot"></div>
+      <div class="gemini-thinking-dot"></div>
+      <span style="margin-left:6px">Analyzing decision history...</span>
+    </div>`);
 
   addActivity('gemini', `Answering: "${q.substring(0, 40)}..."`);
 
@@ -848,6 +878,35 @@ function renderTranscriptResults(data) {
       });
     }
     if (currentTab === 'decisions') renderDecisionsFullTable();
+  }
+}
+
+/* ── Monitor cycle trigger ───────────────────────────────────────────────── */
+async function triggerMonitorCycle() {
+  addActivity('fivetran', '⚡ MCP: triggering agent monitoring cycle...');
+  try {
+    const res = await fetch(`${API}/api/monitor/run`, { method: 'POST' });
+    const data = await res.json();
+    addActivity('gemini', '🟣 Gemini 3: monitoring cycle started');
+    // Poll status after 5s
+    setTimeout(async () => {
+      try {
+        const sr = await fetch(`${API}/api/monitor/status`);
+        const s = await sr.json();
+        const badge = document.getElementById('monitor-status-badge');
+        if (badge && s.ran_at) {
+          badge.textContent = `Last run: ${new Date(s.ran_at).toLocaleTimeString()} · ${s.warnings_detected || 0} patterns`;
+          badge.style.display = 'block';
+        }
+        if (s.warnings_new > 0) {
+          addActivity('warning', `⚠️ ${s.warnings_new} new warning(s) detected by agent`);
+        } else if (s.status === 'ok') {
+          addActivity('success', `✅ Monitoring cycle complete — no new warnings`);
+        }
+      } catch(_) {}
+    }, 5000);
+  } catch(e) {
+    addActivity('warning', 'Monitor cycle failed — check backend');
   }
 }
 

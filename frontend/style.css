@@ -80,10 +80,26 @@
   --shadow-sm: 0 1px 3px rgba(0,0,0,0.10);
   --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
-  --red-dim: rgba(255,59,48,0.08);
-  --green-dim: rgba(48,209,88,0.08);
-  --yellow-dim: rgba(255,159,10,0.08);
-  --blue-dim: rgba(10,132,255,0.08);
+  --shadow-red: 0 0 20px rgba(255,59,48,0.12);
+  --shadow-green: 0 0 20px rgba(48,209,88,0.08);
+
+  /* Accent dims — lighter for white backgrounds */
+  --red-dim: rgba(255,59,48,0.07);
+  --red-border: rgba(255,59,48,0.20);
+  --green-dim: rgba(48,209,88,0.07);
+  --green-border: rgba(48,209,88,0.18);
+  --yellow-dim: rgba(255,159,10,0.07);
+  --yellow-border: rgba(255,159,10,0.20);
+  --blue-dim: rgba(10,132,255,0.07);
+  --blue-border: rgba(10,132,255,0.18);
+  --purple-dim: rgba(191,90,242,0.07);
+
+  /* Accent text — slightly darker for light mode readability */
+  --red: #E0352B;
+  --green: #1E8C40;
+  --yellow: #B36200;
+  --blue: #0066CC;
+  --purple: #9B36CC;
 }
 
 /* ── Reset & Base ───────────────────────────────────────────────────────── */
@@ -650,6 +666,9 @@ small { font-size: 12px; color: var(--text-secondary); }
   text-align: center;
   background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,59,48,0.06) 0%, transparent 70%);
 }
+[data-theme="light"] .landing {
+  background: radial-gradient(ellipse 80% 60% at 50% 0%, rgba(255,59,48,0.04) 0%, transparent 65%);
+}
 .landing-eyebrow {
   font-size: 12px;
   font-weight: 600;
@@ -1123,6 +1142,55 @@ small { font-size: 12px; color: var(--text-secondary); }
   gap: var(--space-2);
 }
 .mcp-call::before { content: '▶'; font-size: 9px; opacity: 0.6; }
+
+/* ── Skeleton loading states ─────────────────────────────────────────────── */
+@keyframes shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+.skeleton {
+  border-radius: var(--radius-sm);
+  background: linear-gradient(
+    90deg,
+    var(--bg-tertiary) 25%,
+    var(--bg-elevated) 50%,
+    var(--bg-tertiary) 75%
+  );
+  background-size: 800px 100%;
+  animation: shimmer 1.4s ease-in-out infinite;
+}
+.skeleton-text  { height: 14px; margin-bottom: 8px; }
+.skeleton-title { height: 22px; width: 60%; margin-bottom: 12px; }
+.skeleton-stat  { height: 80px; border-radius: var(--radius-lg); }
+.skeleton-row   { height: 52px; margin-bottom: 4px; border-radius: var(--radius-sm); }
+.skeleton-card  { height: 120px; border-radius: var(--radius-lg); margin-bottom: 16px; }
+
+.loading-overlay {
+  position: absolute;
+  inset: 0;
+  background: var(--bg-primary);
+  opacity: 0.8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  border-radius: var(--radius-lg);
+}
+.gemini-thinking {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.gemini-thinking-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--purple);
+  animation: pulse 1.2s ease-in-out infinite;
+}
+.gemini-thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.gemini-thinking-dot:nth-child(3) { animation-delay: 0.4s; }
 
 /* ── Live MCP call log in sidebar ───────────────────────────────────────── */
 .mcp-log-feed {

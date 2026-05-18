@@ -218,8 +218,12 @@
         <span class="nav-icon">📝</span> Transcript
       </button>
 
-      <div class="nav-section-label">Live MCP Calls</div>
+      <div class="nav-section-label" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Live MCP Calls</span>
+        <button class="btn btn-ghost btn-sm" style="padding:2px 6px;font-size:10px" onclick="triggerMonitorCycle()" title="Run agent cycle now">▶ Run</button>
+      </div>
       <div id="sidebar-mcp-log" class="mcp-log-feed"></div>
+      <div id="monitor-status-badge" style="font-size:11px;color:var(--text-tertiary);margin-top:4px;display:none"></div>
 
       <div class="nav-section-label">Agent Activity</div>
       <div id="sidebar-activity" class="activity-feed" style="font-size:12px">

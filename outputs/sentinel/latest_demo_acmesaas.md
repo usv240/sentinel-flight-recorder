@@ -1,7 +1,7 @@
 # 📦 SENTINEL — Demo Scenario Loaded
 **Scenario:** acmesaas
 **Name:** AcmeSaaS — Pricing Disaster
-**Loaded:** May 18, 2026 at 14:17 UTC
+**Loaded:** May 18, 2026 at 16:39 UTC
 
 ---
 

@@ -1,48 +1,86 @@
-# SENTINEL — Google Cloud Agent Builder Setup
+# SENTINEL — Gemini Enterprise Agent Platform Setup
 
-## Step 1: Open Agent Builder
-Go to: https://console.cloud.google.com/agent-builder?project=orace-agent
+**Platform:** Gemini Enterprise Agent Platform (formerly Vertex AI Agent Builder)  
+**Console:** https://console.cloud.google.com/agent-builder?project=orace-agent  
+**Model:** Gemini 3 Flash Preview (`gemini-3-flash-preview`)
 
-## Step 2: Create a new Agent
-1. Click **Create Agent**
-2. Agent type: **Conversational agent**
+---
+
+## Option A: Agent Studio (Visual — Fastest for Demo)
+
+### Step 1: Open Agent Studio
+1. Go to https://console.cloud.google.com/agent-builder?project=orace-agent
+2. Click **Create Agent** → **Conversational agent**
 3. Display name: `SENTINEL - Business Flight Recorder`
-4. Region: `us-central1`
-5. Click **Create**
+4. Model: `gemini-3-flash-preview`
+5. Region: `us-central1`
+6. Click **Create**
 
-## Step 3: Set the System Prompt
-Paste the full contents of `agent/system_prompt.txt` into the **Agent instructions** field.
+### Step 2: Paste System Prompt
+Copy the full contents of `agent/system_prompt.txt` into the **Agent instructions** field.
 
-## Step 4: Connect Fivetran MCP
-1. In Agent Builder → **Tools** → **Add Tool**
-2. Select **OpenAPI** tool type
-3. Point to your running SENTINEL backend: `https://your-cloud-run-url/api`
-4. Or for local testing: use the MCP server directly
+### Step 3: Add SENTINEL API as an OpenAPI Tool
+1. Agent Studio → **Tools** → **Add Tool** → **OpenAPI**
+2. Upload `agent/openapi_spec.yaml`
+3. Server URL: `https://sentinel-38381883054.us-central1.run.app`
 
-For the official Fivetran MCP:
-1. Clone: `git clone https://github.com/fivetran/fivetran-mcp`
-2. Run: `FIVETRAN_API_KEY=xxx FIVETRAN_API_SECRET=xxx FIVETRAN_ALLOW_WRITES=true python server.py`
-3. In Agent Builder → Tools → Add MCP Tool → point to the running server
+### Step 4: Add Fivetran MCP as a Tool
+1. Agent Studio → **Tools** → **Add Tool** → **OpenAPI**
+2. The SENTINEL backend proxies MCP calls — use the `/api/connectors/*` endpoints
+3. Or: run the Fivetran MCP server locally and connect via ngrok for testing
 
-## Step 5: Add SENTINEL API as a tool
-1. Agent Builder → **Tools** → **Add Tool** → **OpenAPI**
-2. Upload or paste `agent/tools.json`
-3. Set the server URL to your Cloud Run deployment URL
+### Step 5: Test in the Playground
+Try these prompts to verify the reasoning trace shows tool calls:
+- `"List my connected data sources"`  
+- `"What are the current business metrics?"`
+- `"Log a decision: we are increasing prices by 20%"`
+- `"Why did we raise prices?"`
+- `"Check for early warnings"`
+- `"Trace the causal chain for the churn spike"`
 
-## Step 6: Test in Agent Builder playground
-Try these prompts:
-- "List my connected data sources"
-- "What are my current business metrics?"
-- "Log a decision: we are increasing prices by 20%"
-- "Why did we raise prices?"
-- "Check for any early warnings"
-- "Trace the causal chain for the churn spike"
+**Verify:** Expand the reasoning trace. You must see `list_fivetran_connectors` and 
+`trigger_fivetran_sync` called before every answer. Judges check this.
 
-## Step 7: Verify MCP tool calls are visible
-In the Agent Builder playground, expand the **reasoning trace** to see each tool call.
-This is what judges see — make sure `list_fivetran_connectors` and `trigger_fivetran_sync` 
-appear in the trace before every answer.
+---
+
+## Option B: ADK Deploy (Code-first — Full Control)
+
+```bash
+# Install ADK
+pip install google-cloud-aiplatform[agent_engines] google-adk
+
+# Set project
+gcloud config set project orace-agent
+
+# Deploy SENTINEL agent to Agent Engine
+cd sentinel/
+adk deploy agent/sentinel_agent.py \
+  --project=orace-agent \
+  --region=us-central1 \
+  --display_name="SENTINEL Business Flight Recorder"
+```
+
+The `adk deploy` command uploads `sentinel_agent.py` to Agent Engine (managed runtime).
+Once deployed, the agent URL appears in the console.
+
+---
 
 ## Connector IDs (from your Fivetran account)
-- Google Sheets connector: `humble_currently` (from URL: connections/humble_currently)
+- Google Sheets connector: `humble_currently`
 - Group ID: `about_legislation`
+- BigQuery dataset: `google_sheets.acmesaas_metrics`
+
+---
+
+## What Judges Will Check
+
+1. Open Agent Studio → Playground
+2. Type: `"What are the current warnings?"`
+3. **Expand the reasoning trace** — must show:
+   - `list_fivetran_connectors()` called first
+   - `trigger_fivetran_sync()` called second  
+   - `check_early_warnings()` called third
+   - Gemini reasoning synthesizing the results
+4. The answer must cite specific metrics and dates
+
+If the tool calls are visible in the trace, the Technological Implementation score is high.

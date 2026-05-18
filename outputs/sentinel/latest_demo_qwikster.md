@@ -1,7 +1,7 @@
 # 📦 SENTINEL — Demo Scenario Loaded
 **Scenario:** qwikster
 **Name:** Netflix Qwikster — The $3B Mistake
-**Loaded:** May 18, 2026 at 14:17 UTC
+**Loaded:** May 18, 2026 at 16:39 UTC
 
 ---
 

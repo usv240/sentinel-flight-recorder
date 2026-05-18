@@ -200,9 +200,12 @@ def _mock_connectors():
 
 async def list_connectors() -> List[Dict]:
     result = await call_mcp_tool("list_connections")
-    items = (result.get("data", {}).get("items")
-             or result.get("connectors")
-             or _mock_connectors())
+    # Use `is not None` — empty list is a valid real response, not a reason to mock
+    items = result.get("data", {}).get("items")
+    if items is None:
+        items = result.get("connectors")
+    if items is None:
+        items = _mock_connectors()
     return items
 
 
