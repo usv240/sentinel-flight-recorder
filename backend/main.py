@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls
+from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http
 from .services.monitor import start_scheduler, stop_scheduler, get_last_cycle_status, run_monitoring_cycle
 
 logging.basicConfig(level=logging.INFO)
@@ -31,6 +31,8 @@ except ImportError:
 # ── CORS — only allow the actual deployment origins ───────────────────────────
 _ALLOWED_ORIGINS = [
     "https://sentinel-38381883054.us-central1.run.app",
+    "https://console.cloud.google.com",
+    "https://agent-platform.cloud.google.com",
     "http://localhost:8100",
     "http://localhost:8080",
     "http://127.0.0.1:8100",
@@ -94,6 +96,7 @@ app.include_router(demo.router,        prefix="/api/demo",        tags=["demo"])
 app.include_router(ask.router,         prefix="/api/ask",         tags=["ask"])
 app.include_router(transcript.router,  prefix="/api/transcript",  tags=["transcript"])
 app.include_router(toolcalls.router,   prefix="/api/tool-calls",  tags=["tool-calls"])
+app.include_router(mcp_http.router,    prefix="/api/mcp",         tags=["mcp"])
 
 
 @app.get("/api/health")
