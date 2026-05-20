@@ -1,7 +1,7 @@
 # 📦 SENTINEL — Demo Scenario Loaded
 **Scenario:** acmesaas
 **Name:** AcmeSaaS — Pricing Disaster
-**Loaded:** May 18, 2026 at 20:02 UTC
+**Loaded:** May 20, 2026 at 15:25 UTC
 
 ---
 
@@ -25,8 +25,8 @@
 ---
 
 ## Active Warnings (2)
-- [CRITICAL] **ALERT: Customer login frequency has plummeted by 60%. This critical drop directly follows the 20% pricing tier increase 34 days ago, mirroring the pattern seen in 87% of churned accounts after similar price hikes when NPS was below 40.**
-- [HIGH] Immediate alert: Subscription seats have decreased by 33%. This directly follows the 20% pricing tier increase implemented 14 days ago, which historical data identifies as an early churn signal.
+- [CRITICAL] **URGENT EARLY WARNING:** Customer login frequency has dropped by 60%. This directly correlates with the 20% pricing increase 34 days ago, a pattern historically preceding churn in 87% of accounts with an NPS below 40.
+- [HIGH] A 33% reduction in subscription seats has been detected immediately. This follows the 20% pricing tier increase 14 days ago and matches historical patterns for early churn signals identified via the Fivetran Stripe connector.
 
 ---
 

@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http
+from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http, agent_chat
 from .services.monitor import start_scheduler, stop_scheduler, get_last_cycle_status, run_monitoring_cycle
 
 logging.basicConfig(level=logging.INFO)
@@ -97,6 +97,7 @@ app.include_router(ask.router,         prefix="/api/ask",         tags=["ask"])
 app.include_router(transcript.router,  prefix="/api/transcript",  tags=["transcript"])
 app.include_router(toolcalls.router,   prefix="/api/tool-calls",  tags=["tool-calls"])
 app.include_router(mcp_http.router,    prefix="/api/mcp",         tags=["mcp"])
+app.include_router(agent_chat.router,  prefix="/api/agent",       tags=["agent"])
 
 
 @app.get("/api/health")

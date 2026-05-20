@@ -1,13 +1,13 @@
 # 🟠 SENTINEL — Early Warning
-**Warning ID:** `WARN-20260519-D2EC59`
+**Warning ID:** `WARN-20260520-EA183B`
 **Severity:** `HIGH`
-**Fired:** May 19, 2026 at 14:59 UTC
+**Fired:** May 20, 2026 at 15:31 UTC
 **Auto-detected:** Yes (pattern matching)
 
 ---
 
 ## Warning
-> Support tickets over the last 7 days have increased by a staggering 3400%. The root decision is unknown, and historical patterns reveal that support tickets tripling the average combined with a login frequency drop lead to churn within 21 days.
+> Support tickets over the last 7 days have surged by an unprecedented 3400%. The root decision behind this event is unknown, but historical patterns show that support tickets tripling average combined with decreased login frequency predicts customer churn within 21 days.
 
 ---
 

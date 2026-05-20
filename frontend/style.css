@@ -1,37 +1,38 @@
 /* ── SENTINEL Design System ─────────────────────────────────────────────── */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=Outfit:wght@400;500;600;700;800;900&display=swap');
 
 /* ── CSS Custom Properties ─────────────────────────────────────────────── */
 :root {
   /* Dark mode (default) */
-  --bg-primary: #0A0A0B;
-  --bg-secondary: #141416;
-  --bg-tertiary: #1C1C1E;
-  --bg-elevated: #242426;
-  --border: rgba(255,255,255,0.08);
-  --border-strong: rgba(255,255,255,0.14);
-  --text-primary: #F5F5F7;
-  --text-secondary: #86868B;
-  --text-tertiary: #48484A;
+  --bg-primary: #050505;
+  --bg-secondary: #0a0a0c;
+  --bg-tertiary: #121214;
+  --bg-elevated: #1a1a1c;
+  --border: rgba(255,255,255,0.06);
+  --border-strong: rgba(255,255,255,0.12);
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1A8;
+  --text-tertiary: #63636B;
 
   /* Accent colors — same in both modes */
-  --red: #FF3B30;
-  --red-dim: rgba(255,59,48,0.12);
-  --red-border: rgba(255,59,48,0.25);
-  --green: #30D158;
-  --green-dim: rgba(48,209,88,0.10);
-  --green-border: rgba(48,209,88,0.22);
-  --yellow: #FF9F0A;
-  --yellow-dim: rgba(255,159,10,0.10);
-  --yellow-border: rgba(255,159,10,0.22);
-  --blue: #0A84FF;
-  --blue-dim: rgba(10,132,255,0.10);
-  --blue-border: rgba(10,132,255,0.22);
-  --purple: #BF5AF2;
-  --purple-dim: rgba(191,90,242,0.10);
+  --red: #FF2E4C;
+  --red-dim: rgba(255,46,76,0.12);
+  --red-border: rgba(255,46,76,0.25);
+  --green: #00E676;
+  --green-dim: rgba(0,230,118,0.10);
+  --green-border: rgba(0,230,118,0.22);
+  --yellow: #FFAB00;
+  --yellow-dim: rgba(255,171,0,0.10);
+  --yellow-border: rgba(255,171,0,0.22);
+  --blue: #2979FF;
+  --blue-dim: rgba(41,121,255,0.10);
+  --blue-border: rgba(41,121,255,0.22);
+  --purple: #D500F9;
+  --purple-dim: rgba(213,0,249,0.10);
 
   /* Typography */
+  --font-heading: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
   --font-mono: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
 
@@ -51,55 +52,55 @@
   --radius-sm: 8px;
   --radius-md: 12px;
   --radius-lg: 16px;
-  --radius-xl: 20px;
+  --radius-xl: 24px;
   --radius-full: 9999px;
 
   /* Shadows */
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.4);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.5);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.6);
-  --shadow-red: 0 0 20px rgba(255,59,48,0.2);
-  --shadow-green: 0 0 20px rgba(48,209,88,0.15);
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.4);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.5);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.6);
+  --shadow-red: 0 0 24px rgba(255,46,76,0.25);
+  --shadow-green: 0 0 24px rgba(0,230,118,0.15);
 
   /* Transitions */
-  --transition: 200ms cubic-bezier(0.4,0,0.2,1);
+  --transition: 250ms cubic-bezier(0.4,0,0.2,1);
   --transition-slow: 400ms cubic-bezier(0.4,0,0.2,1);
   --transition-spring: 300ms cubic-bezier(0.34,1.56,0.64,1);
 }
 
 [data-theme="light"] {
-  --bg-primary: #F5F5F7;
+  --bg-primary: #FAFAFA;
   --bg-secondary: #FFFFFF;
-  --bg-tertiary: #F2F2F7;
+  --bg-tertiary: #F4F4F5;
   --bg-elevated: #FFFFFF;
-  --border: rgba(0,0,0,0.08);
-  --border-strong: rgba(0,0,0,0.14);
-  --text-primary: #1D1D1F;
-  --text-secondary: #6E6E73;
-  --text-tertiary: #AEAEB2;
-  --shadow-sm: 0 1px 3px rgba(0,0,0,0.10);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
-  --shadow-lg: 0 8px 32px rgba(0,0,0,0.15);
-  --shadow-red: 0 0 20px rgba(255,59,48,0.12);
-  --shadow-green: 0 0 20px rgba(48,209,88,0.08);
+  --border: rgba(0,0,0,0.06);
+  --border-strong: rgba(0,0,0,0.12);
+  --text-primary: #09090B;
+  --text-secondary: #52525B;
+  --text-tertiary: #A1A1AA;
+  --shadow-sm: 0 2px 4px rgba(0,0,0,0.04);
+  --shadow-md: 0 8px 24px rgba(0,0,0,0.06);
+  --shadow-lg: 0 16px 48px rgba(0,0,0,0.08);
+  --shadow-red: 0 0 24px rgba(255,46,76,0.15);
+  --shadow-green: 0 0 24px rgba(0,230,118,0.1);
 
   /* Accent dims — lighter for white backgrounds */
-  --red-dim: rgba(255,59,48,0.07);
-  --red-border: rgba(255,59,48,0.20);
-  --green-dim: rgba(48,209,88,0.07);
-  --green-border: rgba(48,209,88,0.18);
-  --yellow-dim: rgba(255,159,10,0.07);
-  --yellow-border: rgba(255,159,10,0.20);
-  --blue-dim: rgba(10,132,255,0.07);
-  --blue-border: rgba(10,132,255,0.18);
-  --purple-dim: rgba(191,90,242,0.07);
+  --red-dim: rgba(255,46,76,0.08);
+  --red-border: rgba(255,46,76,0.15);
+  --green-dim: rgba(0,230,118,0.08);
+  --green-border: rgba(0,230,118,0.15);
+  --yellow-dim: rgba(255,171,0,0.08);
+  --yellow-border: rgba(255,171,0,0.15);
+  --blue-dim: rgba(41,121,255,0.08);
+  --blue-border: rgba(41,121,255,0.15);
+  --purple-dim: rgba(213,0,249,0.08);
 
   /* Accent text — slightly darker for light mode readability */
-  --red: #E0352B;
-  --green: #1E8C40;
-  --yellow: #B36200;
-  --blue: #0066CC;
-  --purple: #9B36CC;
+  --red: #E11D48;
+  --green: #16A34A;
+  --yellow: #D97706;
+  --blue: #2563EB;
+  --purple: #9333EA;
 }
 
 /* ── Reset & Base ───────────────────────────────────────────────────────── */
@@ -118,6 +119,7 @@ body {
 
 /* ── Typography ─────────────────────────────────────────────────────────── */
 .hero-number {
+  font-family: var(--font-heading);
   font-size: clamp(56px, 8vw, 80px);
   font-weight: 800;
   line-height: 1;
@@ -126,16 +128,17 @@ body {
 .hero-label {
   font-size: 13px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-secondary);
 }
-h1 { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
-h2 { font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
-h3 { font-size: 17px; font-weight: 600; }
-h4 { font-size: 15px; font-weight: 600; }
+h1, h2, h3, h4 { font-family: var(--font-heading); }
+h1 { font-size: 32px; font-weight: 700; letter-spacing: -0.02em; }
+h2 { font-size: 24px; font-weight: 600; letter-spacing: -0.01em; }
+h3 { font-size: 18px; font-weight: 600; }
+h4 { font-size: 16px; font-weight: 600; }
 p  { font-size: 15px; color: var(--text-secondary); line-height: 1.6; }
-small { font-size: 12px; color: var(--text-secondary); }
+small { font-size: 13px; color: var(--text-secondary); }
 .mono { font-family: var(--font-mono); font-size: 13px; }
 
 /* ── Layout ─────────────────────────────────────────────────────────────── */
@@ -147,7 +150,9 @@ small { font-size: 12px; color: var(--text-secondary); }
 }
 
 .sidebar {
-  background: var(--bg-secondary);
+  background: rgba(20, 20, 22, 0.75);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
@@ -156,6 +161,10 @@ small { font-size: 12px; color: var(--text-secondary); }
   position: sticky;
   top: 0;
   height: 100vh;
+  z-index: 10;
+}
+[data-theme="light"] .sidebar {
+  background: rgba(255, 255, 255, 0.75);
 }
 
 .main-content {
@@ -259,13 +268,23 @@ small { font-size: 12px; color: var(--text-secondary); }
 
 /* ── Cards ──────────────────────────────────────────────────────────────── */
 .card {
-  background: var(--bg-secondary);
+  background: rgba(20, 20, 22, 0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   padding: var(--space-6);
-  transition: border-color var(--transition), box-shadow var(--transition);
+  transition: all var(--transition-spring);
+  box-shadow: var(--shadow-sm);
 }
-.card:hover { border-color: var(--border-strong); }
+[data-theme="light"] .card {
+  background: rgba(255, 255, 255, 0.7);
+}
+.card:hover { 
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
 .card.warning-card {
   border-color: var(--red-border);
   background: var(--bg-secondary);
@@ -328,9 +347,10 @@ small { font-size: 12px; color: var(--text-secondary); }
 .btn {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: var(--space-2);
-  padding: 9px 18px;
-  border-radius: var(--radius-sm);
+  padding: 10px 20px;
+  border-radius: var(--radius-md);
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
@@ -338,11 +358,14 @@ small { font-size: 12px; color: var(--text-secondary); }
   transition: all var(--transition-spring);
   text-decoration: none;
   white-space: nowrap;
+  font-family: var(--font-heading);
 }
-.btn:hover    { transform: scale(1.02); }
-.btn:active   { transform: scale(0.98); }
-.btn-primary  { background: var(--blue);  color: white; }
-.btn-danger   { background: var(--red);   color: white; box-shadow: var(--shadow-red); }
+.btn:hover    { transform: translateY(-2px) scale(1.02); box-shadow: var(--shadow-md); }
+.btn:active   { transform: translateY(0) scale(0.98); }
+.btn-primary  { background: linear-gradient(135deg, var(--blue), #448AFF); color: white; box-shadow: 0 4px 12px rgba(41,121,255,0.25); }
+.btn-primary:hover { box-shadow: 0 6px 16px rgba(41,121,255,0.35); }
+.btn-danger   { background: linear-gradient(135deg, var(--red), #FF5252); color: white; box-shadow: 0 4px 12px rgba(255,46,76,0.25); }
+.btn-danger:hover { box-shadow: 0 6px 16px rgba(255,46,76,0.35); }
 .btn-ghost    { background: var(--bg-tertiary); color: var(--text-secondary); border: 1px solid var(--border); }
 .btn-ghost:hover { color: var(--text-primary); background: var(--bg-elevated); }
 .btn-sm       { padding: 6px 12px; font-size: 13px; }
@@ -587,8 +610,119 @@ small { font-size: 12px; color: var(--text-secondary); }
   pointer-events: none;
   transition: opacity var(--transition);
   z-index: 10;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
 }
 .timeline-event:hover .event-tooltip { opacity: 1; pointer-events: auto; }
+
+/* ── Educational Tooltips (Generic) ─────────────────────────────────────── */
+.edu-tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  cursor: help;
+  border-bottom: 1px dashed var(--text-secondary);
+}
+.edu-tooltip {
+  position: absolute;
+  bottom: 120%;
+  left: 50%;
+  transform: translateX(-50%) translateY(10px);
+  background: var(--bg-elevated);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: var(--space-3) var(--space-4);
+  width: max-content;
+  max-width: 280px;
+  box-shadow: var(--shadow-lg);
+  opacity: 0;
+  pointer-events: none;
+  transition: all var(--transition-spring);
+  z-index: 100;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-weight: 400;
+  line-height: 1.5;
+  text-align: center;
+}
+.edu-tooltip-wrap:hover .edu-tooltip {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+/* ── Floating Guide (Onboarding) ────────────────────────────────────────── */
+.floating-guide {
+  position: fixed;
+  bottom: var(--space-6);
+  right: var(--space-8);
+  background: rgba(41, 121, 255, 0.95);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: var(--radius-lg);
+  padding: var(--space-5);
+  width: 320px;
+  color: white;
+  box-shadow: 0 12px 40px rgba(41,121,255,0.4);
+  z-index: 9999;
+  transform: translateY(100px);
+  opacity: 0;
+  transition: all var(--transition-spring);
+  pointer-events: none;
+}
+.floating-guide.visible {
+  transform: translateY(0);
+  opacity: 1;
+  pointer-events: auto;
+}
+.guide-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-2);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.8);
+}
+.guide-title {
+  font-family: var(--font-heading);
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: var(--space-2);
+}
+.guide-desc {
+  font-size: 13px;
+  line-height: 1.5;
+  color: rgba(255,255,255,0.9);
+  margin-bottom: var(--space-4);
+}
+.guide-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.guide-btn {
+  background: white;
+  color: var(--blue);
+  border: none;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.guide-btn:hover { background: #f0f0f0; transform: scale(1.05); }
+.guide-skip {
+  background: transparent;
+  border: none;
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+  cursor: pointer;
+}
+.guide-skip:hover { color: white; }
 
 /* ── Split screen — Then vs Now ─────────────────────────────────────────── */
 .split-screen {

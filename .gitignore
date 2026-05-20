@@ -18,4 +18,5 @@ build/
 
 env-cloud.yaml
 .env
+PROGRESS.md
 

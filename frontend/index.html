@@ -86,7 +86,10 @@
       <div class="lstat-divider"></div>
       <div class="lstat">
         <div class="lstat-num" style="color:var(--blue)">r = 0.87</div>
-        <div class="lstat-label">Pearson causal correlation score</div>
+        <div class="lstat-label edu-tooltip-wrap">
+          Pearson causal correlation score
+          <div class="edu-tooltip">Pearson's r measures the strength of the linear relationship between the decision and the outcome, helping the AI establish confidence in the causal chain.</div>
+        </div>
       </div>
     </div>
 
@@ -490,6 +493,12 @@ Example:
           <span class="suggestion-chip" onclick="askSuggestion(this)">What are the active early warnings?</span>
           <span class="suggestion-chip" onclick="askSuggestion(this)">Explain the Pearson correlation score</span>
         </div>
+        <div style="display:flex;align-items:center;gap:10px;padding:8px 16px 0;font-size:12px;color:var(--text-secondary)">
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+            <input type="checkbox" id="use-adk-agent" style="accent-color:var(--red)">
+            <span>Use ADK Agent <span style="color:var(--text-tertiary)">(multi-step Gemini 3 orchestration — slower but traces full causal chain)</span></span>
+          </label>
+        </div>
         <div class="chat-input-row">
           <input class="chat-input" id="chat-input" type="text"
             placeholder="Ask SENTINEL anything about your decision history..."
@@ -610,6 +619,24 @@ Example:
 
 <!-- Global theme toggle — fixed top-right on every view -->
 <button class="theme-toggle global-theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme">🌙</button>
+
+<!-- ═══════════════════════════════════════════════════════════════════════
+     FLOATING ONBOARDING GUIDE
+════════════════════════════════════════════════════════════════════════ -->
+<div id="floating-guide" class="floating-guide">
+  <div class="guide-header">
+    <span id="guide-step">STEP 1/3</span>
+    <button class="modal-close" style="width:20px;height:20px;color:rgba(255,255,255,0.8);background:transparent" onclick="dismissGuide()">×</button>
+  </div>
+  <div id="guide-title" class="guide-title">Welcome to Sentinel</div>
+  <div id="guide-desc" class="guide-desc">
+    Sentinel continuously monitors Fivetran data to trace negative outcomes back to root business decisions.
+  </div>
+  <div class="guide-actions">
+    <button class="guide-skip" onclick="dismissGuide()">Skip Tour</button>
+    <button id="guide-next-btn" class="guide-btn" onclick="nextGuideStep()">Next →</button>
+  </div>
+</div>
 
 <script src="app.js"></script>
 </body>

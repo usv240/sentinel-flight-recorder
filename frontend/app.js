@@ -530,35 +530,60 @@ async function sendQuestion() {
   if (!q) return;
   input.value = '';
 
+  const useAdk = document.getElementById('use-adk-agent')?.checked;
+
   appendBubble('user', q);
 
+  const modeLabel = useAdk
+    ? '✈️ SENTINEL ADK — Gemini 3 Agent'
+    : '✈️ SENTINEL — Gemini 3';
+  const thinkingMsg = useAdk
+    ? 'Running multi-step agent: listing connectors → syncing data → analyzing...'
+    : 'Analyzing decision history...';
+
   const thinking = appendBubble('sentinel', `
-    <div class="sentinel-label">✈️ SENTINEL — Gemini 3</div>
+    <div class="sentinel-label">${modeLabel}</div>
     <div class="gemini-thinking">
       <div class="gemini-thinking-dot"></div>
       <div class="gemini-thinking-dot"></div>
       <div class="gemini-thinking-dot"></div>
-      <span style="margin-left:6px">Analyzing decision history...</span>
+      <span style="margin-left:6px">${thinkingMsg}</span>
     </div>`);
 
-  addActivity('gemini', `Answering: "${q.substring(0, 40)}..."`);
+  addActivity('gemini', `${useAdk ? '[ADK] ' : ''}Answering: "${q.substring(0, 40)}..."`);
 
   try {
-    const res = await fetch(`${API}/api/ask/`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ question: q, demo_scenario: currentScenario }),
-    });
-    const data = await res.json();
+    let answer, sources, confidence;
+
+    if (useAdk) {
+      const res = await fetch(`${API}/api/agent/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: q, demo_scenario: currentScenario }),
+      });
+      const data = await res.json();
+      answer = data.response;
+      sources = [`ADK Agent (${data.model})`];
+    } else {
+      const res = await fetch(`${API}/api/ask/`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: q, demo_scenario: currentScenario }),
+      });
+      const data = await res.json();
+      answer = data.answer;
+      sources = data.sources;
+      confidence = data.confidence;
+    }
 
     thinking.innerHTML = `
-      <div class="sentinel-label">✈️ SENTINEL</div>
-      <div>${data.answer}</div>
-      ${data.sources?.length ? `<div style="margin-top:10px;font-size:12px;color:var(--text-tertiary)">Sources: ${data.sources.join(' · ')}</div>` : ''}
-      ${data.confidence ? `<div style="margin-top:6px"><span class="badge badge-blue">${(data.confidence * 100).toFixed(0)}% confidence</span></div>` : ''}
+      <div class="sentinel-label">${modeLabel}</div>
+      <div>${answer}</div>
+      ${sources?.length ? `<div style="margin-top:10px;font-size:12px;color:var(--text-tertiary)">Sources: ${sources.join(' · ')}</div>` : ''}
+      ${confidence ? `<div style="margin-top:6px"><span class="badge badge-blue">${(confidence * 100).toFixed(0)}% confidence</span></div>` : ''}
     `;
   } catch (e) {
-    thinking.innerHTML = `<div class="sentinel-label">✈️ SENTINEL</div>Based on the decision log, I can see decisions related to your question. Try connecting real data for live analysis.`;
+    thinking.innerHTML = `<div class="sentinel-label">${modeLabel}</div>Based on the decision log, I can see decisions related to your question. Try connecting real data for live analysis.`;
   }
 }
 
@@ -792,8 +817,74 @@ function _fmtDate(d) {
 function _fmtDateShort(d) {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }); }
-  catch { return d.toString().substring(0, 10); }
 }
+
+/* ── Interactive Onboarding Tour ─────────────────────────────────────────── */
+let currentGuideStep = 0;
+const guideSteps = [
+  {
+    title: "1. Background Monitoring",
+    desc: "Sentinel connects via Fivetran MCP. Every 30 minutes, it pulls your latest SaaS metrics while you work.",
+    action: "See how it analyzes...",
+    tab: "overview"
+  },
+  {
+    title: "2. The Causal Trace",
+    desc: "When metrics drop, Gemini automatically builds a causal chain from the negative outcome back to the root decision.",
+    action: "View the Trace →",
+    tab: "trace"
+  },
+  {
+    title: "3. Logging Decisions",
+    desc: "You can log decisions manually or extract them automatically from meeting transcripts.",
+    action: "Finish Tour",
+    tab: "decisions"
+  }
+];
+
+function startGuide() {
+  currentGuideStep = 0;
+  document.getElementById('floating-guide').classList.add('visible');
+  updateGuideUI();
+}
+
+function nextGuideStep() {
+  if (currentGuideStep < guideSteps.length - 1) {
+    currentGuideStep++;
+    updateGuideUI();
+    
+    // Switch tabs dynamically for "wow" effect
+    if (guideSteps[currentGuideStep].tab) {
+      switchTab(guideSteps[currentGuideStep].tab);
+    }
+  } else {
+    dismissGuide();
+  }
+}
+
+function updateGuideUI() {
+  const step = guideSteps[currentGuideStep];
+  document.getElementById('guide-step').textContent = `STEP ${currentGuideStep + 1}/${guideSteps.length}`;
+  document.getElementById('guide-title').textContent = step.title;
+  document.getElementById('guide-desc').textContent = step.desc;
+  document.getElementById('guide-next-btn').textContent = step.action;
+}
+
+function dismissGuide() {
+  document.getElementById('floating-guide').classList.remove('visible');
+}
+
+// Auto-start guide 3 seconds after loading a scenario if not seen
+const observer = new MutationObserver(() => {
+  if (document.getElementById('view-dashboard').classList.contains('active')) {
+    if (!sessionStorage.getItem('tourSeen')) {
+      setTimeout(() => startGuide(), 3000);
+      sessionStorage.setItem('tourSeen', 'true');
+    }
+  }
+});
+observer.observe(document.getElementById('view-dashboard'), { attributes: true, attributeFilter: ['class'] });
+
 
 function _fmtKey(k) {
   return k.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());

@@ -247,6 +247,39 @@ paths:
                   sources: { type: array, items: { type: string } }
                   relevant_decision_ids: { type: array, items: { type: string } }
 
+  /api/agent/chat:
+    post:
+      operationId: agent_chat
+      summary: Run the SENTINEL ADK agent (Gemini 3 FunctionTools — full multi-step orchestration)
+      description: >
+        Invokes the Google ADK code-first agent. The agent autonomously calls
+        list_fivetran_connectors → trigger_fivetran_sync → get_metrics_snapshot
+        before answering. Returns the final synthesized response after all tool calls complete.
+        Slower than /api/ask/ but performs full causal chain reasoning with real-time data.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message: { type: string }
+                session_id: { type: string, description: "Conversation session ID (auto-generated if omitted)" }
+                demo_scenario: { type: string, enum: [acmesaas, qwikster] }
+      responses:
+        '200':
+          description: Agent response after multi-step tool orchestration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  response: { type: string }
+                  session_id: { type: string }
+                  agent: { type: string, example: "SENTINEL-ADK" }
+                  model: { type: string, example: "gemini-3-flash-preview" }
+
   /api/transcript/extract:
     post:
       operationId: extract_decisions_from_transcript
