@@ -25,6 +25,9 @@ mcp>=1.0.0
 # Background scheduler — autonomous monitoring loop (makes SENTINEL truly agentic)
 apscheduler>=3.10.4
 
+# Rate limiting
+slowapi>=0.1.9
+
 # Utilities
 python-dotenv==1.0.1
 python-multipart==0.0.12

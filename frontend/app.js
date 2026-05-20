@@ -5,18 +5,30 @@ let currentScenario = null;
 let currentTab = 'overview';
 
 /* ── Theme ──────────────────────────────────────────────────────────────── */
-function toggleTheme() {
-  const html = document.documentElement;
-  const isDark = html.getAttribute('data-theme') === 'dark';
-  html.setAttribute('data-theme', isDark ? 'light' : 'dark');
-  document.querySelector('.theme-toggle').textContent = isDark ? '🌙' : '☀️';
+function _setTheme(theme) {
+  document.documentElement.setAttribute('data-theme', theme);
+  // Light mode → 🌙 button ("switch to dark")
+  // Dark mode  → ☀️ button ("switch to light")
+  const icon = theme === 'dark' ? '☀️' : '🌙';
+  document.querySelectorAll('.theme-toggle').forEach(b => b.textContent = icon);
+  localStorage.setItem('sentinel-theme', theme);
 }
 
-// Auto-detect system preference on load
-if (window.matchMedia?.('(prefers-color-scheme: light)').matches) {
-  document.documentElement.setAttribute('data-theme', 'light');
-  document.querySelector('.theme-toggle').textContent = '🌙';
+function toggleTheme() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  _setTheme(isDark ? 'light' : 'dark');
 }
+
+// On load: saved preference → system preference → default light
+(function () {
+  const saved = localStorage.getItem('sentinel-theme');
+  if (saved) {
+    _setTheme(saved);
+  } else if (window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
+    _setTheme('dark');
+  }
+  // else: html defaults to light, buttons already show 🌙
+})();
 
 /* ── View router ─────────────────────────────────────────────────────────── */
 function showView(viewId) {
@@ -57,9 +69,9 @@ async function loadScenario(scenario) {
   // Show skeleton while Gemini + Fivetran run
   _showDashboardSkeleton();
 
-  addActivity('fivetran', '⚡ MCP: fivetran.list_connections()');
-  setTimeout(() => addActivity('fivetran', '⚡ MCP: fivetran.trigger_sync(connector)'), 350);
-  setTimeout(() => addActivity('gemini', '🟣 Gemini 3: computing causal analysis...'), 700);
+  // Poll real MCP tool calls starting now
+  const mcpPollStart = _mcpPollLastId;
+  setTimeout(() => _pollMcpCallsSince(mcpPollStart), 1000);
 
   try {
     const res = await fetch(`${API}/api/demo/${scenario}/full`);
@@ -401,18 +413,32 @@ function closeLogModal() {
 
 async function loadModalMetrics() {
   const el = document.getElementById('modal-metrics-list');
-  el.innerHTML = `<div class="thinking-dots"><span>•</span><span>•</span><span>•</span></div> <span style="font-size:13px;color:var(--text-secondary)">Fetching Fivetran snapshot...</span>`;
+  el.innerHTML = `
+    <div class="gemini-thinking">
+      <div class="gemini-thinking-dot"></div>
+      <div class="gemini-thinking-dot"></div>
+      <div class="gemini-thinking-dot"></div>
+      <span style="margin-left:8px;font-size:13px;color:var(--text-secondary)">Calling Fivetran MCP...</span>
+    </div>`;
 
-  addActivity('fivetran', 'list_connectors (4 sources)');
-  await _sleep(600);
-  addActivity('fivetran', 'trigger_sync (Stripe)');
-  await _sleep(400);
-  addActivity('fivetran', 'get_connector_schema (HubSpot)');
-  await _sleep(300);
+  let snap = {};
+  let flags = [];
 
-  const snap = window._scenarioData?.snapshot || {};
+  try {
+    // Real API call — backend triggers MCP list_connections + BigQuery snapshot
+    const res = await fetch(`${API}/api/decisions/snapshot${currentScenario ? '?demo_scenario=' + currentScenario : ''}`);
+    const data = await res.json();
+    snap = data.snapshot || {};
+    flags = data.flags || [];
+    addActivity('fivetran', '⚡ MCP: list_connections() → snapshot captured');
+  } catch (e) {
+    // Fallback to cached scenario snapshot
+    snap = window._scenarioData?.snapshot || {};
+    flags = snap._flags || [];
+    addActivity('fivetran', '⚡ Snapshot from cached scenario data');
+  }
+
   const metrics = ['mrr', 'churn_rate', 'nps', 'active_customers', 'cac', 'support_tickets_7d'];
-
   el.innerHTML = metrics
     .filter(m => snap[m] != null)
     .map(m => {
@@ -424,19 +450,19 @@ async function loadModalMetrics() {
         <div style="font-size:18px;font-weight:700;color:${isFlag ? 'var(--red)' : 'var(--text-primary)'}">${display}</div>
         <div style="font-size:11px;color:var(--text-secondary)">${_fmtKey(m)}</div>
       </div>`;
-    }).join('');
+    }).join('') || '<div style="color:var(--text-secondary);font-size:13px">No live metrics available</div>';
 
-  // Flags
-  const flags = snap._flags || [];
   const flagsEl = document.getElementById('modal-flags-preview');
   if (flags.length) {
     flagsEl.innerHTML = `<div style="background:var(--yellow-dim);border:1px solid var(--yellow-border);border-radius:var(--radius-sm);padding:var(--space-4);margin-bottom:var(--space-5);font-size:13px">
       <div style="font-weight:700;color:var(--yellow);margin-bottom:8px">⚠️ ${flags.length} flag(s) at time of this decision</div>
       ${flags.map(f => `<div style="color:var(--text-secondary);padding:2px 0">• ${f}</div>`).join('')}
     </div>`;
+  } else if (flagsEl) {
+    flagsEl.innerHTML = '';
   }
 
-  addActivity('success', 'Metrics snapshot ready');
+  addActivity('success', '✅ Real-time snapshot ready');
 }
 
 async function submitDecision() {
@@ -947,6 +973,24 @@ function _renderMcpCall(call) {
   // Mirror to main activity feed
   const source = call.source === 'mcp' ? 'fivetran' : 'fivetran';
   addActivity(source, `${sourceLabel}: ${call.tool}()`);
+}
+
+async function _pollMcpCallsSince(sinceId) {
+  // Short burst of polls to pick up calls triggered by scenario load
+  for (let i = 0; i < 6; i++) {
+    await _sleep(1500);
+    try {
+      const res = await fetch(`${API}/api/tool-calls/recent?since=${sinceId}&limit=10`);
+      const data = await res.json();
+      if (data.calls?.length) {
+        for (const call of data.calls) {
+          _renderMcpCall(call);
+          sinceId = Math.max(sinceId, call.id + 1);
+          _mcpPollLastId = sinceId;
+        }
+      }
+    } catch (_) {}
+  }
 }
 
 /* ── Data source badge ────────────────────────────────────────────────────── */

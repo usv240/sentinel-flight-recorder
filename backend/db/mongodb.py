@@ -11,7 +11,12 @@ def get_client() -> AsyncIOMotorClient:
     global _client
     if _client is None:
         uri = os.getenv("MONGODB_URI", "mongodb://localhost:27017")
-        _client = AsyncIOMotorClient(uri)
+        _client = AsyncIOMotorClient(
+            uri,
+            serverSelectionTimeoutMS=5000,
+            connectTimeoutMS=10000,
+            socketTimeoutMS=15000,
+        )
     return _client
 
 
@@ -20,11 +25,13 @@ def get_db():
     return get_client()[db_name]
 
 
-async def insert_decision(doc: Dict[str, Any]) -> str:
+async def insert_decision(doc: Dict[str, Any], snapshot: Optional[Dict] = None) -> str:
     db = get_db()
     decision_id = f"DEC-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:6].upper()}"
     doc["decision_id"] = decision_id
     doc["logged_at"] = datetime.utcnow()
+    if snapshot:
+        doc["metrics_snapshot"] = snapshot
     await db.decisions.insert_one(doc)
     return decision_id
 

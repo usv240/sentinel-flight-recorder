@@ -1,7 +1,7 @@
 # 📦 SENTINEL — Demo Scenario Loaded
 **Scenario:** qwikster
 **Name:** Netflix Qwikster — The $3B Mistake
-**Loaded:** May 18, 2026 at 16:39 UTC
+**Loaded:** May 18, 2026 at 20:01 UTC
 
 ---
 
@@ -23,13 +23,13 @@
 ---
 
 ## Active Warnings (1)
-- [CRITICAL] Subscriber growth decelerated 45% QoQ before the price announcement. Internal survey showed 67% subscriber rejection rate of proposed increase. Combined with a service split, SENTINEL projects 600K–1M subscriber losses in Q3.
+- [CRITICAL] SENTINEL WARNING: Immediate data indicates subscriber growth has decelerated by 45%. This rapid deceleration follows yesterday's announcement of a 60% price increase and Qwikster split, a decision historically correlated with 45% QoQ growth deceleration, 67% internal rejection rates, and 82,000 negative social comments within 24 hours.
 
 ---
 
 ## Causal Trace Summary
 - **Outcome:** 800,000 subscribers lost — worst quarter in Netflix history
-- **Pearson r:** 0.910
+- **Pearson r:** 0.945
 - **Days of warning:** 0
 - **Chain length:** 5 events
 
@@ -43,6 +43,7 @@
 | active_customers | 24600000 |
 | churn_rate | 4.20% |
 | nps | 62 |
+| _data_source | demo_baseline |
 
 ---
 

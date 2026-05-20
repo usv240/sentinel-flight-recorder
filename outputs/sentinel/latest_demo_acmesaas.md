@@ -1,7 +1,7 @@
 # 📦 SENTINEL — Demo Scenario Loaded
 **Scenario:** acmesaas
 **Name:** AcmeSaaS — Pricing Disaster
-**Loaded:** May 18, 2026 at 16:39 UTC
+**Loaded:** May 18, 2026 at 20:02 UTC
 
 ---
 
@@ -25,14 +25,14 @@
 ---
 
 ## Active Warnings (2)
-- [CRITICAL] Customer X (Acme Enterprise, $120K ARR) login frequency dropped 60% in the last 7 days — a pattern seen in 87% of accounts that churned following a price increase. This traces to the pricing decision of June 3.
-- [HIGH] Customer X reduced active seats from 45 to 30 — a 33% reduction detected by Fivetran Stripe connector. This is an early churn signal that traces to the June 3 pricing decision.
+- [CRITICAL] **ALERT: Customer login frequency has plummeted by 60%. This critical drop directly follows the 20% pricing tier increase 34 days ago, mirroring the pattern seen in 87% of churned accounts after similar price hikes when NPS was below 40.**
+- [HIGH] Immediate alert: Subscription seats have decreased by 33%. This directly follows the 20% pricing tier increase implemented 14 days ago, which historical data identifies as an early churn signal.
 
 ---
 
 ## Causal Trace Summary
 - **Outcome:** Customer X churned — $120,000 ARR lost
-- **Pearson r:** 0.870
+- **Pearson r:** 0.998
 - **Days of warning:** 34
 - **Chain length:** 5 events
 
@@ -41,17 +41,18 @@
 ## Metrics Snapshot
 | Metric | Value |
 |--------|-------|
-| mrr | $85,000 |
-| arr | $1,020,000 |
-| churn_rate | 9.00% |
-| nps | 31 |
-| active_customers | 142 |
-| cac | $1,800 |
-| ltv | $9,200 |
-| support_tickets_7d | 89 |
+| mrr | $91,000 |
+| arr | $1,092,000 |
+| churn_rate | 7.00% |
+| nps | 44 |
+| active_customers | 158 |
+| cac | $1,950 |
+| ltv | $11,200 |
+| support_tickets_7d | 34 |
 | pipeline_value | $340,000 |
 | burn_rate | $95,000 |
-| runway_months | 14.2 |
+| runway_months | 16.8 |
+| _data_source | bigquery_live |
 
 ---
 

@@ -1,8 +1,11 @@
 openapi: 3.0.0
 info:
   title: SENTINEL API
-  description: The Business Flight Recorder — record decisions, trace outcomes, fire early warnings
-  version: 1.0.0
+  description: >
+    The Business Flight Recorder — records every business decision with its full
+    Fivetran data context, then traces what happened next using Gemini 3 causal AI.
+    Powered by Fivetran MCP, Google Cloud Agent Builder, Gemini 3, BigQuery, MongoDB Atlas.
+  version: 2.0.0
 servers:
   - url: https://sentinel-38381883054.us-central1.run.app
     description: Production (Cloud Run)
@@ -10,17 +13,38 @@ servers:
     description: Local development
 
 paths:
+
+  /api/health:
+    get:
+      operationId: get_health
+      summary: Service health check — includes monitor status and MCP call count
+      responses:
+        '200':
+          description: Health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: string }
+                  gemini_model: { type: string }
+                  demo_mode: { type: boolean }
+                  mongodb: { type: string }
+                  monitor:
+                    type: object
+                    properties:
+                      last_run: { type: string }
+                      status: { type: string }
+                      warnings_detected: { type: integer }
+                  mcp_calls_logged: { type: integer }
+
   /api/connectors/list:
     get:
       operationId: list_fivetran_connectors
-      summary: List all connected Fivetran data sources
-      description: Shows all Fivetran connectors with their sync status. Always call this first to show which data sources are available.
-      parameters:
-        - name: demo_mode
-          in: query
-          schema:
-            type: boolean
-            default: true
+      summary: List all Fivetran-connected data sources via MCP
+      description: >
+        Calls fivetran.list_connections() via the Fivetran MCP server.
+        Always call this first to show which data sources are available and their sync status.
       responses:
         '200':
           description: List of connectors
@@ -29,24 +53,21 @@ paths:
               schema:
                 type: object
                 properties:
-                  connectors:
-                    type: array
-                    items:
-                      type: object
-                  count:
-                    type: integer
+                  connectors: { type: array }
+                  count: { type: integer }
 
   /api/connectors/{connector_id}/sync:
     post:
       operationId: trigger_fivetran_sync
-      summary: Force a fresh Fivetran sync
-      description: Triggers a data refresh before snapshotting metrics. Call before logging any decision.
+      summary: Trigger a live Fivetran sync via MCP
+      description: >
+        Calls fivetran.sync_connection() via MCP. Call this before logging
+        any decision to ensure metrics are fresh from all connected sources.
       parameters:
         - name: connector_id
           in: path
           required: true
-          schema:
-            type: string
+          schema: { type: string }
       responses:
         '200':
           description: Sync triggered
@@ -55,22 +76,42 @@ paths:
               schema:
                 type: object
                 properties:
-                  triggered:
-                    type: boolean
-                  connector_id:
-                    type: string
+                  triggered: { type: boolean }
+                  connector_id: { type: string }
+
+  /api/decisions/snapshot:
+    get:
+      operationId: get_metrics_snapshot
+      summary: Get current Fivetran metrics snapshot
+      description: Returns the latest metrics from all Fivetran-connected sources via BigQuery.
+      parameters:
+        - name: demo_scenario
+          in: query
+          schema: { type: string, enum: [acmesaas, qwikster] }
+      responses:
+        '200':
+          description: Current metrics
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  snapshot: { type: object }
+                  flags: { type: array, items: { type: string } }
+                  sources: { type: object }
 
   /api/decisions/log:
     post:
       operationId: log_decision
       summary: Record a business decision with full Fivetran metrics snapshot
-      description: Logs a decision and automatically captures all current metrics from Fivetran-connected sources at this exact moment.
+      description: >
+        Logs a decision and atomically captures all current metrics from Fivetran-connected
+        sources at this exact moment. Future causal traces will use this snapshot.
+        ALWAYS call trigger_fivetran_sync before this to get fresh data.
       parameters:
         - name: demo_scenario
           in: query
-          schema:
-            type: string
-            enum: [acmesaas, qwikster]
+          schema: { type: string, enum: [acmesaas, qwikster] }
       requestBody:
         required: true
         content:
@@ -90,8 +131,7 @@ paths:
                   description: Why this decision was made
                 alternatives_considered:
                   type: array
-                  items:
-                    type: string
+                  items: { type: string }
       responses:
         '200':
           description: Decision recorded
@@ -100,16 +140,9 @@ paths:
               schema:
                 type: object
                 properties:
-                  decision_id:
-                    type: string
-                  metrics_captured:
-                    type: array
-                    items:
-                      type: string
-                  flags:
-                    type: array
-                    items:
-                      type: string
+                  decision_id: { type: string }
+                  metrics_captured: { type: array, items: { type: string } }
+                  flags: { type: array, items: { type: string } }
 
   /api/decisions/list:
     get:
@@ -118,8 +151,10 @@ paths:
       parameters:
         - name: demo_scenario
           in: query
-          schema:
-            type: string
+          schema: { type: string, enum: [acmesaas, qwikster] }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
       responses:
         '200':
           description: Decision log
@@ -128,22 +163,20 @@ paths:
               schema:
                 type: object
                 properties:
-                  decisions:
-                    type: array
-                  total:
-                    type: integer
+                  decisions: { type: array }
+                  total: { type: integer }
 
   /api/warnings/active:
     get:
       operationId: check_early_warnings
       summary: Check for active early warnings
-      description: Pattern-matches current metrics against historical bad-outcome patterns. Returns alerts if patterns are detected.
+      description: >
+        Pattern-matches current Fivetran metrics against historical bad-outcome patterns.
+        Returns alerts if warning patterns are detected. Check after every sync.
       parameters:
         - name: demo_scenario
           in: query
-          schema:
-            type: string
-            enum: [acmesaas, qwikster]
+          schema: { type: string, enum: [acmesaas, qwikster] }
       responses:
         '200':
           description: Active warnings
@@ -152,21 +185,21 @@ paths:
               schema:
                 type: object
                 properties:
-                  warnings:
-                    type: array
+                  warnings: { type: array }
+                  count: { type: integer }
 
   /api/trace/demo/{scenario}:
     get:
       operationId: trace_causal_chain_demo
-      summary: Trace the causal chain for a demo scenario
-      description: Shows the full causal trace with Pearson correlation, days of warning, and split-screen data comparison.
+      summary: Full causal trace for a demo scenario
+      description: >
+        Returns the complete causal trace including computed Pearson r correlation,
+        days of warning available, Gemini-generated narrative, and split-screen data.
       parameters:
         - name: scenario
           in: path
           required: true
-          schema:
-            type: string
-            enum: [acmesaas, qwikster]
+          schema: { type: string, enum: [acmesaas, qwikster] }
       responses:
         '200':
           description: Causal trace result
@@ -175,22 +208,22 @@ paths:
               schema:
                 type: object
                 properties:
-                  outcome_description:
-                    type: string
-                  pearson_r:
-                    type: number
-                  days_of_warning:
-                    type: integer
-                  narrative:
-                    type: string
-                  causal_chain:
-                    type: array
+                  outcome_description: { type: string }
+                  pearson_r: { type: number }
+                  p_value: { type: number }
+                  days_of_warning: { type: integer }
+                  narrative: { type: string }
+                  causal_chain: { type: array }
 
   /api/ask/:
     post:
       operationId: ask_sentinel
       summary: Ask SENTINEL a question about the decision log
-      description: Answer questions like "Why did we raise prices?" or "What caused the churn spike?"
+      description: >
+        Answer questions using Gemini 3 with full scenario context:
+        "Why did we raise prices?", "What caused the churn spike?",
+        "What data existed when we made the hiring decision?"
+        "Explain the Pearson correlation score."
       requestBody:
         required: true
         content:
@@ -199,11 +232,8 @@ paths:
               type: object
               required: [question]
               properties:
-                question:
-                  type: string
-                demo_scenario:
-                  type: string
-                  enum: [acmesaas, qwikster]
+                question: { type: string }
+                demo_scenario: { type: string, enum: [acmesaas, qwikster] }
       responses:
         '200':
           description: Answer from SENTINEL
@@ -212,14 +242,109 @@ paths:
               schema:
                 type: object
                 properties:
-                  answer:
-                    type: string
-                  confidence:
-                    type: number
-                  sources:
-                    type: array
-                    items:
-                      type: string
+                  answer: { type: string }
+                  confidence: { type: number }
+                  sources: { type: array, items: { type: string } }
+                  relevant_decision_ids: { type: array, items: { type: string } }
+
+  /api/transcript/extract:
+    post:
+      operationId: extract_decisions_from_transcript
+      summary: Extract business decisions from a meeting transcript, Slack thread, or email
+      description: >
+        Paste any unstructured text — meeting notes, Slack thread, email, strategy doc.
+        Gemini 3 extracts every business decision with type, rationale, and participants.
+        Each extracted decision is automatically logged with a live Fivetran metrics snapshot.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transcript]
+              properties:
+                transcript: { type: string }
+                source: { type: string, enum: [meeting, slack, email, doc], default: meeting }
+                date: { type: string, description: "Date of the transcript (ISO format)" }
+      responses:
+        '200':
+          description: Extracted decisions
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  decisions_found: { type: integer }
+                  decisions_logged: { type: integer }
+                  decisions: { type: array }
+                  message: { type: string }
+
+  /api/tool-calls/recent:
+    get:
+      operationId: get_recent_mcp_calls
+      summary: Get recent Fivetran MCP tool calls
+      description: >
+        Returns the log of recent MCP tool calls with source (mcp or rest_fallback),
+        tool name, arguments, and result preview. Use this to verify MCP integration.
+      parameters:
+        - name: since
+          in: query
+          schema: { type: integer, default: 0 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 20 }
+      responses:
+        '200':
+          description: Recent tool calls
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  calls: { type: array }
+                  total: { type: integer }
+
+  /api/monitor/status:
+    get:
+      operationId: get_monitor_status
+      summary: Get autonomous monitoring loop status
+      description: >
+        Returns status of the last autonomous agent cycle — how many connectors checked,
+        syncs triggered, warnings detected, BigQuery metrics captured.
+      responses:
+        '200':
+          description: Monitor status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ran_at: { type: string }
+                  connectors_checked: { type: integer }
+                  syncs_triggered: { type: integer }
+                  warnings_detected: { type: integer }
+                  warnings_new: { type: integer }
+                  snapshot_metrics: { type: integer }
+                  status: { type: string }
+
+  /api/monitor/run:
+    post:
+      operationId: trigger_monitor_cycle
+      summary: Manually trigger an autonomous monitoring cycle
+      description: >
+        Immediately runs: Fivetran MCP list_connections → trigger_sync →
+        BigQuery snapshot → Gemini warning analysis → save any new warnings.
+        This is the agent's autonomous loop running on demand.
+      responses:
+        '200':
+          description: Cycle triggered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  triggered: { type: boolean }
+                  message: { type: string }
 
   /api/demo/scenarios:
     get:
@@ -232,3 +357,5 @@ paths:
             application/json:
               schema:
                 type: object
+                properties:
+                  scenarios: { type: array }

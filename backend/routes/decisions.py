@@ -7,9 +7,26 @@ from ..services.output_writer import write_decision
 
 router = APIRouter()
 
+_VALID_SCENARIOS = {"acmesaas", "qwikster", ""}
+
+
+def _validate_scenario(s: str):
+    if s and s not in _VALID_SCENARIOS:
+        raise HTTPException(400, f"Invalid demo_scenario '{s}'. Must be: acmesaas, qwikster")
+
+
+@router.get("/snapshot")
+async def get_current_snapshot(demo_scenario: str = ""):
+    """Return current Fivetran metrics snapshot — called by the Log Decision modal."""
+    _validate_scenario(demo_scenario)
+    snapshot = await build_metrics_snapshot(demo_scenario or None)
+    clean = {k: v for k, v in snapshot.items() if not k.startswith("_") and k not in ("raw",)}
+    return {"snapshot": clean, "flags": snapshot.get("_flags", []), "sources": snapshot.get("sources", {})}
+
 
 @router.post("/log")
 async def log_decision(req: DecisionLogRequest, demo_scenario: str = ""):
+    _validate_scenario(demo_scenario)
     snapshot = await build_metrics_snapshot(demo_scenario or None)
 
     doc = {
@@ -25,7 +42,8 @@ async def log_decision(req: DecisionLogRequest, demo_scenario: str = ""):
     }
 
     # Try MongoDB — gracefully degrade if unavailable
-    decision_id = f"DEC-LOCAL-{__import__('uuid').uuid4().hex[:8].upper()}"
+    import uuid as _uuid_mod
+    decision_id = f"DEC-LOCAL-{_uuid_mod.uuid4().hex[:8].upper()}"
     try:
         decision_id = await mongodb.insert_decision(doc)
         doc["decision_id"] = decision_id

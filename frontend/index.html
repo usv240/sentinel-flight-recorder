@@ -1,10 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>SENTINEL — The Business Flight Recorder</title>
-  <meta name="description" content="The first flight recorder for human business decisions. Powered by Fivetran and Gemini." />
+  <meta name="description" content="The first flight recorder for human business decisions. Powered by Fivetran MCP, Gemini 3, and Google Cloud Agent Builder." />
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
 </head>
@@ -114,9 +114,9 @@
         <div class="step-card">
           <div class="step-number">3</div>
           <div class="step-icon-lg">🟣</div>
-          <div class="step-name">Gemini analyzes</div>
-          <div class="step-desc">Calculates Pearson r correlation between this decision and historical outcomes. Flags metrics in warning territory.</div>
-          <div class="step-tech">Gemini 2.5 Flash</div>
+          <div class="step-name">Gemini 3 analyzes</div>
+          <div class="step-desc">Generates causal narrative and early warning text. Pearson r is computed from real time-series data via scipy — then Gemini explains what it means.</div>
+          <div class="step-tech">Gemini 3</div>
         </div>
         <div class="step-arrow">→</div>
         <div class="step-card">
@@ -154,8 +154,8 @@
         </div>
         <div class="tech-card">
           <div class="tech-logo">🟣</div>
-          <div class="tech-name">Gemini 2.5 Flash</div>
-          <div class="tech-desc">Causal reasoning, Pearson r correlation calculation, early warning narrative generation.</div>
+          <div class="tech-name">Gemini 3</div>
+          <div class="tech-desc">Causal narrative generation, early warning text, decision extraction from transcripts. Pearson r is computed by scipy from real time-series; Gemini explains what the numbers mean.</div>
         </div>
         <div class="tech-card">
           <div class="tech-logo">🔶</div>
@@ -179,7 +179,7 @@
       <small>Built with</small>
       <small>🔵 Fivetran MCP</small>
       <small>🟡 Google Cloud Agent Builder</small>
-      <small>🟣 Gemini 2.5 Flash</small>
+      <small>🟣 Gemini 3</small>
     </div>
 
   </div>
@@ -246,9 +246,8 @@
         </div>
       </div>
 
-      <div style="margin-top:var(--space-4); padding-top:var(--space-4); border-top:1px solid var(--border); display:flex; gap:var(--space-3)">
-        <button class="theme-toggle" onclick="toggleTheme()" title="Toggle theme">🌙</button>
-        <button class="btn btn-ghost btn-sm" onclick="showView('landing')" style="flex:1">← Back</button>
+      <div style="margin-top:var(--space-4); padding-top:var(--space-4); border-top:1px solid var(--border)">
+        <button class="btn btn-ghost btn-sm" onclick="showView('landing')" style="width:100%">← Back to Home</button>
       </div>
     </aside>
 
@@ -608,6 +607,9 @@ Example:
     <div id="modal-detail-content"></div>
   </div>
 </div>
+
+<!-- Global theme toggle — fixed top-right on every view -->
+<button class="theme-toggle global-theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme">🌙</button>
 
 <script src="app.js"></script>
 </body>
