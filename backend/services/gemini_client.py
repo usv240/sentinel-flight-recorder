@@ -21,10 +21,10 @@ except ImportError:
 _client: Optional[object] = None
 _LEGACY_AVAILABLE = False  # legacy google-generativeai removed; use google-genai only
 
-# Model priority order — gemini-2.5-flash is the latest confirmed available
+# Model priority — gemini-2.5-pro confirmed available on Vertex AI
 _MODEL_CANDIDATES = [
-    "gemini-2.5-flash",         # primary — confirmed working on Vertex AI
-    "gemini-2.5-flash-preview-05-20",  # alternate preview name
+    "gemini-2.5-pro",           # primary — most capable, confirmed working
+    "gemini-2.5-flash",         # fallback — faster
     "gemini-2.0-flash",         # last resort
 ]
 

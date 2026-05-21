@@ -364,15 +364,14 @@ async def process_message_event(event: dict):
             "text": {
                 "type": "mrkdwn",
                 "text": (
-                    f"{match['emoji']}  *SENTINEL Decision Council convened*\n"
-                    f"3 specialized agents analyzing your *{match['type'].upper()}* decision in parallel...\n"
-                    f"_Results will appear below as each agent completes._"
+                    f"*SENTINEL Decision Council* — {match['emoji']} {match['type'].upper()} decision intercepted\n"
+                    f"3 agents analyzing in parallel. Results appearing below..."
                 ),
             },
         },
         {
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": "✈️ SENTINEL · Fivetran BigQuery → Gemini 2.5 Flash · no human triggered this"}],
+            "elements": [{"type": "mrkdwn", "text": "SENTINEL · Fivetran BigQuery → Gemini 2.5 Pro · autonomous — no human triggered this"}],
         },
     ]
     await _post_to_slack(channel, ts, "#007AFF", opening_blocks)
@@ -455,34 +454,34 @@ async def process_message_event(event: dict):
         precheck.get("risk_level", "low"), "#8E8E93"
     )
 
-    await _post_to_slack(channel, ts, "#007AFF", [
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"*🔵 Data Agent* (Fivetran BigQuery)\n{data_out}"}},
+    await _post_to_slack(channel, ts, "#2D9CDB", [
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Data Agent* — Fivetran BigQuery\n{data_out}"}},
     ])
 
     await _post_to_slack(channel, ts, risk_color, [
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"*🔴 Risk Agent* (Bradford Hill + Historical Patterns)\n{risk_out}"}},
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Risk Agent* — Bradford Hill + Historical Patterns\n{risk_out}"}},
     ])
 
-    await _post_to_slack(channel, ts, "#FF9500", [
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"*🟡 Alternatives Agent* (Scenario Planner)\n{alts_out}"}},
+    await _post_to_slack(channel, ts, "#F2994A", [
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Alternatives Agent* — Scenario Planner\n{alts_out}"}},
     ])
 
     # ── Step 6: Lead Agent synthesis ─────────────────────────────────────────
     synthesis = await _lead_agent(text, data_out, risk_out, alts_out)
 
     final_blocks = [
-        {"type": "section", "text": {"type": "mrkdwn", "text": f"*⚖️ Lead Agent — Final Verdict*\n\n{synthesis}"}},
+        {"type": "section", "text": {"type": "mrkdwn", "text": f"*Lead Agent — Verdict*\n\n{synthesis}"}},
         {"type": "divider"},
         {
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": "Reply *`PLAN`* for a 30-60-90 day roadmap  ·  *`PROCEED`* to log with risk acknowledged  ·  *`CANCEL`* to dismiss",
+                "text": "Reply *`PLAN`* for 30-60-90 day roadmap  ·  *`PROCEED`* to log with risk acknowledged  ·  *`CANCEL`* to dismiss",
             },
         },
         {
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": "✈️ SENTINEL multi-agent analysis complete · 4 agents · Fivetran BigQuery + Gemini 2.5 Flash"}],
+            "elements": [{"type": "mrkdwn", "text": "SENTINEL · 4 agents · Fivetran BigQuery + Gemini 2.5 Pro · autonomous"}],
         },
     ]
     await _post_to_slack(channel, ts, risk_color, final_blocks)
@@ -509,9 +508,8 @@ async def _handle_reply(text: str, channel: str, thread_ts: str):
         return
 
     if "PLAN" in cmd:
-        # Run planning agent
         await _post_to_slack(channel, thread_ts, "#007AFF", [
-            {"type": "section", "text": {"type": "mrkdwn", "text": "✈️ *Planning Agent generating 30-60-90 day roadmap...*"}},
+            {"type": "section", "text": {"type": "mrkdwn", "text": "*Planning Agent* — generating 30-60-90 day roadmap..."}},
         ])
         plan = await _plan_agent(
             decision_text=intercept.get("decision_text", ""),
@@ -520,8 +518,8 @@ async def _handle_reply(text: str, channel: str, thread_ts: str):
             best_alternative=intercept.get("alts_out", "").split("\n")[0] if intercept.get("alts_out") else "",
         )
         await _post_to_slack(channel, thread_ts, "#007AFF", [
-            {"type": "section", "text": {"type": "mrkdwn", "text": f"*✈️ SENTINEL 30-60-90 Day Plan*\n\n{plan}"}},
-            {"type": "context", "elements": [{"type": "mrkdwn", "text": "SENTINEL will monitor metrics automatically and alert you at each checkpoint."}]},
+            {"type": "section", "text": {"type": "mrkdwn", "text": f"*SENTINEL — 30-60-90 Day Plan*\n\n{plan}"}},
+            {"type": "context", "elements": [{"type": "mrkdwn", "text": "SENTINEL will monitor these metrics automatically and alert you at each checkpoint."}]},
         ])
 
     elif any(w in cmd for w in ("PROCEED", "LOG", "YES")):
