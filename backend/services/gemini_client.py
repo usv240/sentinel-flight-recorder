@@ -72,17 +72,20 @@ def _clean_json(text: str) -> str:
 
 
 async def generate(prompt: str, as_json: bool = False) -> str:
-    """Core generation call — tries Gemini 3 via Vertex AI first."""
-    model_id = _get_model_id()
+    """Core generation call — tries Gemini 3 via Vertex AI, falls back gracefully."""
     text = None
 
-    # Try: new SDK (Vertex AI mode)
     if _GENAI_AVAILABLE:
         client = _get_client()
         if client:
-            for candidate_model in _MODEL_CANDIDATES:
-                if os.getenv("GEMINI_MODEL"):
-                    candidate_model = os.getenv("GEMINI_MODEL")
+            # Build candidate list: env override goes first, then built-in fallbacks
+            env_model = os.getenv("GEMINI_MODEL", "").strip()
+            candidates = (
+                [env_model] + [m for m in _MODEL_CANDIDATES if m != env_model]
+                if env_model else _MODEL_CANDIDATES
+            )
+
+            for candidate_model in candidates:
                 try:
                     config = None
                     if as_json:
@@ -98,12 +101,13 @@ async def generate(prompt: str, as_json: bool = False) -> str:
                         config=config,
                     )
                     text = response.text.strip()
+                    # Store which model actually worked for health reporting
+                    os.environ["GEMINI_MODEL_ACTIVE"] = candidate_model
                     break
                 except Exception as e:
                     err = str(e)
                     if "not found" in err.lower() or "404" in err or "deprecated" in err.lower():
-                        # Try next model
-                        continue
+                        continue  # try next candidate
                     raise
 
     if text is None:

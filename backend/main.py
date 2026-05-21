@@ -122,7 +122,7 @@ async def health():
         "status": "ok",
         "service": "SENTINEL",
         "version": "2.0.0",
-        "gemini_model": os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        "gemini_model": os.getenv("GEMINI_MODEL_ACTIVE") or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
         "demo_mode": os.getenv("DEMO_MODE", "true").lower() == "true",
         "mongodb": "connected" if mongo_ok else "unreachable",
         "monitor": {
