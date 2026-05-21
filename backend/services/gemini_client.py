@@ -21,12 +21,20 @@ except ImportError:
 _client: Optional[object] = None
 _LEGACY_AVAILABLE = False  # legacy google-generativeai removed; use google-genai only
 
-# Model priority — gemini-2.5-pro confirmed available on Vertex AI
-_MODEL_CANDIDATES = [
-    "gemini-2.5-pro",           # primary — most capable, confirmed working
-    "gemini-2.5-flash",         # fallback — faster
+# Gemini 3 models — available via API key (not Vertex AI)
+_GEMINI3_MODELS = [
+    "gemini-3-flash-preview",   # Gemini 3 — confirmed working via API key
+]
+
+# Vertex AI fallback models
+_VERTEX_MODELS = [
+    "gemini-2.5-pro",           # most capable on Vertex AI
+    "gemini-2.5-flash",         # faster fallback
     "gemini-2.0-flash",         # last resort
 ]
+
+# Combined priority list used when GEMINI_MODEL env var not set
+_MODEL_CANDIDATES = _GEMINI3_MODELS + _VERTEX_MODELS
 
 
 def _get_model_id() -> str:
@@ -36,7 +44,11 @@ def _get_model_id() -> str:
 
 
 def _get_client():
-    """Return a configured google-genai client (Vertex AI mode preferred)."""
+    """
+    Return a configured google-genai client.
+    Gemini 3 models are only available via API key (not Vertex AI yet).
+    Vertex AI is used for models that work there (2.5-flash, 2.5-pro, 2.0-flash).
+    """
     global _client
     if _client is not None:
         return _client
@@ -46,15 +58,24 @@ def _get_client():
 
     project = os.getenv("GOOGLE_PROJECT_ID", "")
     location = os.getenv("GOOGLE_LOCATION", "us-central1")
-    api_key = os.getenv("GEMINI_API_KEY", "")
+    api_key  = os.getenv("GEMINI_API_KEY", "")
 
+    # Prefer Vertex AI for cloud compliance — but Gemini 3 needs API key
     if project:
-        # Vertex AI mode — required for Google Cloud tools compliance
         _client = genai.Client(vertexai=True, project=project, location=location)
     elif api_key:
-        # Direct API fallback (dev only)
         _client = genai.Client(api_key=api_key)
     return _client
+
+
+def _get_gemini3_client():
+    """Dedicated client for Gemini 3 models — requires API key, not Vertex AI."""
+    if not _GENAI_AVAILABLE:
+        return None
+    api_key = os.getenv("GEMINI_API_KEY", "")
+    if not api_key:
+        return None
+    return genai.Client(api_key=api_key)
 
 
 
@@ -72,43 +93,54 @@ def _clean_json(text: str) -> str:
 
 
 async def generate(prompt: str, as_json: bool = False) -> str:
-    """Core generation call — tries Gemini 3 via Vertex AI, falls back gracefully."""
+    """
+    Core generation call.
+    Gemini 3 models → API key client (only way they work currently).
+    Gemini 2.5/2.0 models → Vertex AI client.
+    Tries Gemini 3 first, falls back gracefully.
+    """
     text = None
 
-    if _GENAI_AVAILABLE:
-        client = _get_client()
-        if client:
-            # Build candidate list: env override goes first, then built-in fallbacks
-            env_model = os.getenv("GEMINI_MODEL", "").strip()
-            candidates = (
-                [env_model] + [m for m in _MODEL_CANDIDATES if m != env_model]
-                if env_model else _MODEL_CANDIDATES
-            )
+    if not _GENAI_AVAILABLE:
+        return "{}" if as_json else ""
 
-            for candidate_model in candidates:
+    env_model = os.getenv("GEMINI_MODEL", "").strip()
+    candidates = (
+        [env_model] + [m for m in _MODEL_CANDIDATES if m != env_model]
+        if env_model else _MODEL_CANDIDATES
+    )
+
+    vertex_client = _get_client()
+    gemini3_client = _get_gemini3_client()
+
+    for candidate_model in candidates:
+        # Route: Gemini 3 models use API key; everything else uses Vertex AI
+        is_gemini3 = candidate_model in _GEMINI3_MODELS
+        client = gemini3_client if is_gemini3 else vertex_client
+        if not client:
+            continue
+        try:
+            config = None
+            if as_json:
                 try:
-                    config = None
-                    if as_json:
-                        try:
-                            config = genai_types.GenerateContentConfig(
-                                response_mime_type="application/json"
-                            )
-                        except Exception:
-                            config = None
-                    response = client.models.generate_content(
-                        model=candidate_model,
-                        contents=prompt,
-                        config=config,
+                    config = genai_types.GenerateContentConfig(
+                        response_mime_type="application/json"
                     )
-                    text = response.text.strip()
-                    # Store which model actually worked for health reporting
-                    os.environ["GEMINI_MODEL_ACTIVE"] = candidate_model
-                    break
-                except Exception as e:
-                    err = str(e)
-                    if "not found" in err.lower() or "404" in err or "deprecated" in err.lower():
-                        continue  # try next candidate
-                    raise
+                except Exception:
+                    config = None
+            response = client.models.generate_content(
+                model=candidate_model,
+                contents=prompt,
+                config=config,
+            )
+            text = response.text.strip()
+            os.environ["GEMINI_MODEL_ACTIVE"] = candidate_model
+            break
+        except Exception as e:
+            err = str(e)
+            if any(x in err.lower() for x in ["not found", "404", "deprecated", "unavailable", "503", "overloaded"]):
+                continue  # model unavailable — try next candidate
+            raise
 
     if text is None:
         return "{}" if as_json else ""
