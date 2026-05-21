@@ -32,8 +32,15 @@ _GEMINI3_MODELS = [
     "gemini-3.1-flash-lite-preview",# G3 fallback 3
 ]
 
-# All candidates are Gemini 3 — no downgrade to older generations
-_MODEL_CANDIDATES = _GEMINI3_MODELS
+# Vertex AI fallback — used only when ALL Gemini 3 API key quota is exhausted
+# These use the project's Vertex AI billing (much higher quota)
+_VERTEX_FALLBACK = [
+    "gemini-2.5-pro",
+    "gemini-2.5-flash",
+]
+
+# Full candidate list: Gemini 3 first (API key), Vertex AI last resort
+_MODEL_CANDIDATES = _GEMINI3_MODELS + _VERTEX_FALLBACK
 
 
 def _get_model_id() -> str:
@@ -109,11 +116,13 @@ async def generate(prompt: str, as_json: bool = False) -> str:
         if env_model else _MODEL_CANDIDATES
     )
 
-    # All Gemini 3 models require API key — use that client exclusively
     gemini3_client = _get_gemini3_client()
+    vertex_client  = _get_client()
 
     for candidate_model in candidates:
-        client = gemini3_client
+        # Gemini 3 → API key client. Vertex fallbacks → Vertex AI client.
+        is_gemini3 = candidate_model in _GEMINI3_MODELS
+        client = gemini3_client if is_gemini3 else vertex_client
         if not client:
             continue
         try:
@@ -135,8 +144,12 @@ async def generate(prompt: str, as_json: bool = False) -> str:
             break
         except Exception as e:
             err = str(e)
-            if any(x in err.lower() for x in ["not found", "404", "deprecated", "unavailable", "503", "overloaded"]):
-                continue  # model unavailable — try next candidate
+            if any(x in err.lower() for x in [
+                "not found", "404", "deprecated",
+                "unavailable", "503", "overloaded",
+                "429", "resource_exhausted", "quota",
+            ]):
+                continue  # quota / unavailable — try next candidate
             raise
 
     if text is None:

@@ -1377,6 +1377,7 @@ function _fmtDate(d) {
 function _fmtDateShort(d) {
   if (!d) return '—';
   try { return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: '2-digit' }); }
+  catch (_) { return String(d).slice(0, 10); }
 }
 
 /* ── Interactive Onboarding Tour ─────────────────────────────────────────── */
