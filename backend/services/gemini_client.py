@@ -21,6 +21,10 @@ except ImportError:
 _client: Optional[object] = None
 _LEGACY_AVAILABLE = False  # legacy google-generativeai removed; use google-genai only
 
+# Set to True when all Gemini 3 models fail due to quota (429/RESOURCE_EXHAUSTED).
+# Used by tests to distinguish quota exhaustion from code errors.
+_gemini3_quota_exhausted: bool = False
+
 # ── Gemini 3 models — strict requirement, all via API key ─────────────────────
 # Tested and confirmed working: gemini-3-flash-preview, gemini-3.5-flash,
 # gemini-3.1-flash-lite, gemini-3.1-flash-lite-preview
@@ -105,25 +109,36 @@ async def generate(prompt: str, as_json: bool = False) -> str:
     Gemini 2.5/2.0 models → Vertex AI client.
     Tries Gemini 3 first, falls back gracefully.
     """
+    global _gemini3_quota_exhausted
     text = None
 
     if not _GENAI_AVAILABLE:
         return "{}" if as_json else ""
 
     env_model = os.getenv("GEMINI_MODEL", "").strip()
-    candidates = (
-        [env_model] + [m for m in _MODEL_CANDIDATES if m != env_model]
-        if env_model else _MODEL_CANDIDATES
-    )
+    # Always try Gemini 3 first (hackathon strict requirement).
+    # If GEMINI_MODEL is a Gemini 3 model, honour that preference within G3 tier.
+    # If GEMINI_MODEL is a Vertex fallback, still put all G3 models first.
+    if env_model and env_model in _GEMINI3_MODELS:
+        candidates = [env_model] + [m for m in _MODEL_CANDIDATES if m != env_model]
+    else:
+        # env_model is a Vertex model or empty — Gemini 3 tier goes first always
+        candidates = _GEMINI3_MODELS + [m for m in _VERTEX_FALLBACK if m != env_model]
+        if env_model and env_model not in candidates:
+            candidates.append(env_model)
 
     gemini3_client = _get_gemini3_client()
     vertex_client  = _get_client()
+
+    _gemini3_failed_count = 0
 
     for candidate_model in candidates:
         # Gemini 3 → API key client. Vertex fallbacks → Vertex AI client.
         is_gemini3 = candidate_model in _GEMINI3_MODELS
         client = gemini3_client if is_gemini3 else vertex_client
         if not client:
+            if is_gemini3:
+                _gemini3_failed_count += 1
             continue
         try:
             config = None
@@ -141,6 +156,9 @@ async def generate(prompt: str, as_json: bool = False) -> str:
             )
             text = response.text.strip()
             os.environ["GEMINI_MODEL_ACTIVE"] = candidate_model
+            # Reset flag if Gemini 3 succeeds
+            if is_gemini3:
+                _gemini3_quota_exhausted = False
             break
         except Exception as e:
             err = str(e)
@@ -149,8 +167,14 @@ async def generate(prompt: str, as_json: bool = False) -> str:
                 "unavailable", "503", "overloaded",
                 "429", "resource_exhausted", "quota",
             ]):
+                if is_gemini3:
+                    _gemini3_failed_count += 1
                 continue  # quota / unavailable — try next candidate
             raise
+
+    # All Gemini 3 candidates failed → mark quota as exhausted
+    if _gemini3_failed_count >= len(_GEMINI3_MODELS):
+        _gemini3_quota_exhausted = True
 
     if text is None:
         return "{}" if as_json else ""
