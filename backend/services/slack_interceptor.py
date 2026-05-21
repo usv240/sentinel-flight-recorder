@@ -372,7 +372,7 @@ async def process_message_event(event: dict):
         },
         {
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": "✈️ SENTINEL · Fivetran BigQuery → Gemini 3 Flash · no human triggered this"}],
+            "elements": [{"type": "mrkdwn", "text": "✈️ SENTINEL · Fivetran BigQuery → Gemini 2.5 Flash · no human triggered this"}],
         },
     ]
     await _post_to_slack(channel, ts, "#007AFF", opening_blocks)
@@ -482,7 +482,7 @@ async def process_message_event(event: dict):
         },
         {
             "type": "context",
-            "elements": [{"type": "mrkdwn", "text": "✈️ SENTINEL multi-agent analysis complete · 4 agents · Fivetran BigQuery + Gemini 3 Flash"}],
+            "elements": [{"type": "mrkdwn", "text": "✈️ SENTINEL multi-agent analysis complete · 4 agents · Fivetran BigQuery + Gemini 2.5 Flash"}],
         },
     ]
     await _post_to_slack(channel, ts, risk_color, final_blocks)
