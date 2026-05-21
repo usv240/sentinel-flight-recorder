@@ -21,20 +21,19 @@ except ImportError:
 _client: Optional[object] = None
 _LEGACY_AVAILABLE = False  # legacy google-generativeai removed; use google-genai only
 
-# Gemini 3 models — available via API key (not Vertex AI)
+# ── Gemini 3 models — strict requirement, all via API key ─────────────────────
+# Tested and confirmed working: gemini-3-flash-preview, gemini-3.5-flash,
+# gemini-3.1-flash-lite, gemini-3.1-flash-lite-preview
+# Pro models (429 quota-limited): gemini-3.1-pro-preview, gemini-3-pro-preview
 _GEMINI3_MODELS = [
-    "gemini-3-flash-preview",   # Gemini 3 — confirmed working via API key
+    "gemini-3-flash-preview",       # primary — Gemini 3, confirmed working
+    "gemini-3.5-flash",             # G3 fallback 1
+    "gemini-3.1-flash-lite",        # G3 fallback 2
+    "gemini-3.1-flash-lite-preview",# G3 fallback 3
 ]
 
-# Vertex AI fallback models
-_VERTEX_MODELS = [
-    "gemini-2.5-pro",           # most capable on Vertex AI
-    "gemini-2.5-flash",         # faster fallback
-    "gemini-2.0-flash",         # last resort
-]
-
-# Combined priority list used when GEMINI_MODEL env var not set
-_MODEL_CANDIDATES = _GEMINI3_MODELS + _VERTEX_MODELS
+# All candidates are Gemini 3 — no downgrade to older generations
+_MODEL_CANDIDATES = _GEMINI3_MODELS
 
 
 def _get_model_id() -> str:
@@ -110,13 +109,11 @@ async def generate(prompt: str, as_json: bool = False) -> str:
         if env_model else _MODEL_CANDIDATES
     )
 
-    vertex_client = _get_client()
+    # All Gemini 3 models require API key — use that client exclusively
     gemini3_client = _get_gemini3_client()
 
     for candidate_model in candidates:
-        # Route: Gemini 3 models use API key; everything else uses Vertex AI
-        is_gemini3 = candidate_model in _GEMINI3_MODELS
-        client = gemini3_client if is_gemini3 else vertex_client
+        client = gemini3_client
         if not client:
             continue
         try:
