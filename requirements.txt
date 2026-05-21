@@ -8,7 +8,7 @@ motor==3.6.0
 pymongo==4.9.2
 
 # Google Cloud — Gemini via Vertex AI
-google-genai>=1.16.0
+google-genai==1.75.0
 
 # Google Cloud — BigQuery (Fivetran destination)
 google-cloud-bigquery>=3.25.0
@@ -18,10 +18,10 @@ google-cloud-bigquery>=3.25.0
 httpx==0.28.1
 
 # Fivetran MCP subprocess client support
-mcp>=1.0.0
+mcp==1.27.1
 
 # Google Agent Development Kit — ADK code-first agent (Gemini 3 FunctionTools)
-google-adk>=1.0.0
+google-adk==2.0.0
 
 # Background scheduler — autonomous monitoring loop (makes SENTINEL truly agentic)
 apscheduler>=3.10.4
