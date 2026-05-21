@@ -7,6 +7,7 @@
   <meta name="description" content="The first flight recorder for human business decisions. Powered by Fivetran MCP, Gemini 3, and Google Cloud Agent Builder." />
   <link rel="stylesheet" href="style.css" />
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
 
@@ -85,10 +86,10 @@
       </div>
       <div class="lstat-divider"></div>
       <div class="lstat">
-        <div class="lstat-num" style="color:var(--blue)">r = 0.87</div>
+        <div class="lstat-num" style="color:var(--blue)">7/9</div>
         <div class="lstat-label edu-tooltip-wrap">
-          Pearson correlation (pattern strength)
-          <div class="edu-tooltip">Pearson's r measures the linear correlation between decision timing and the outcome metric trajectory — computed by scipy from real weekly data. r &gt; 0.8 is a strong pattern signal. Correlation ≠ causation — SENTINEL shows alternative explanations alongside every score.</div>
+          Bradford Hill criteria met
+          <div class="edu-tooltip">Bradford Hill (1965): 9 criteria for causal inference from observational data — strength, consistency, specificity, temporality, gradient, plausibility, coherence, experiment, analogy. SENTINEL scores every trace against all 9 criteria. 7/9 = strong causal evidence.</div>
         </div>
       </div>
     </div>
@@ -378,6 +379,16 @@
             <div class="timeline-events" id="timeline-events"></div>
           </div>
 
+          <!-- Metric Time Series Chart -->
+          <h3 class="mb-4">Metric Trajectory — Before vs After Decision</h3>
+          <div class="card mb-6" style="padding:var(--space-5)" id="trace-chart-card">
+            <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px">
+              NPS (dashed, right axis) and Churn Rate (solid, left axis) — orange line marks the decision date.
+              Real data from BigQuery via Fivetran.
+            </div>
+            <canvas id="trace-chart" style="max-height:260px"></canvas>
+          </div>
+
           <!-- Split screen: Then vs Now -->
           <h3 class="mb-4">The Data That Existed — And Was Ignored</h3>
           <div class="split-screen mb-6">
@@ -391,6 +402,12 @@
             </div>
           </div>
 
+          <!-- Industry benchmark comparison -->
+          <h3 class="mb-4">Industry Benchmark Comparison <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(your metrics vs. published SaaS benchmarks)</span></h3>
+          <div class="card mb-6" id="benchmarks-panel" style="padding:0">
+            <div style="padding:12px;font-size:12px;color:var(--text-tertiary)">Loading benchmark data...</div>
+          </div>
+
           <!-- Predicted signals -->
           <h3 class="mb-4">Signals That Predicted This</h3>
           <div class="card mb-6" id="predicted-signals"></div>
@@ -402,6 +419,12 @@
               SENTINEL generated these alternative explanations using Gemini. A rigorous analysis considers confounding factors before attributing causation.
             </div>
             <div id="confounding-list"></div>
+          </div>
+
+          <!-- Bradford Hill Causation Criteria -->
+          <h3 class="mb-4">Bradford Hill Causation Criteria <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(9-criterion causal inference framework — Hill 1965)</span></h3>
+          <div class="card mb-6" id="bradford-hill-panel" style="padding:0">
+            <div style="padding:12px;font-size:12px;color:var(--text-tertiary)">Loading Bradford Hill analysis...</div>
           </div>
 
           <!-- Multi-decision attribution — no cherry-picking -->

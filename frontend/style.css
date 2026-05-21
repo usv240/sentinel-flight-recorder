@@ -263,6 +263,7 @@ small { font-size: 13px; color: var(--text-secondary); }
   flex-shrink: 0;
 }
 .source-dot.connected { background: var(--green); box-shadow: 0 0 6px var(--green); }
+.source-dot.live      { background: var(--green); box-shadow: 0 0 5px var(--green); }
 .source-dot.warning   { background: var(--yellow); }
 .source-dot.demo      { background: var(--blue); }
 

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 from ..services.fivetran_client import list_connectors, trigger_sync, get_sync_history
+from ..services.bigquery_pipeline import get_connector_registry
 
 router = APIRouter()
 
@@ -7,6 +8,7 @@ router = APIRouter()
 @router.get("/list")
 async def get_connectors(demo_mode: bool = True):
     connectors = await list_connectors()
+    registry = get_connector_registry()
     enriched = []
     for c in connectors:
         enriched.append({
@@ -17,7 +19,12 @@ async def get_connectors(demo_mode: bool = True):
             "last_sync": c.get("succeeded_at"),
             "demo": demo_mode,
         })
-    return {"connectors": enriched, "count": len(enriched)}
+    return {
+        "connectors": enriched,
+        "count": len(enriched),
+        "bigquery_registry": registry,
+        "data_sources": list(registry.keys()),
+    }
 
 
 @router.post("/{connector_id}/sync")

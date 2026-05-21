@@ -73,6 +73,9 @@ async function loadScenario(scenario) {
   const mcpPollStart = _mcpPollLastId;
   setTimeout(() => _pollMcpCallsSince(mcpPollStart), 1000);
 
+  // Load connector registry for sidebar
+  loadConnectorSources();
+
   try {
     const res = await fetch(`${API}/api/demo/${scenario}/full`);
     const data = await res.json();
@@ -94,6 +97,43 @@ async function loadScenario(scenario) {
     _hideDashboardSkeleton();
     addActivity('warning', 'Using local demo data');
     renderOverview(_getLocalDemo(scenario));
+  }
+}
+
+async function loadConnectorSources() {
+  const el = document.getElementById('sources-list');
+  if (!el) return;
+  try {
+    const res = await fetch(`${API}/api/connectors/list`);
+    const data = await res.json();
+    const sources  = data.data_sources || ['google_sheets'];
+    const registry = data.bigquery_registry || {};
+    const ftConns  = data.connectors || [];
+
+    const sourceIcons = {
+      google_sheets: '📊', hubspot: '🟠', stripe: '💳',
+      salesforce: '☁️', postgres: '🐘', mysql: '🐬',
+    };
+
+    const rows = sources.map(s => `
+      <div class="source-item">
+        <div class="source-dot live"></div>
+        <span style="font-size:12px">${sourceIcons[s] || '🔵'} ${s.replace(/_/g,' ')}</span>
+        <span style="font-size:10px;color:var(--text-tertiary);margin-left:auto">BigQuery</span>
+      </div>
+    `).join('');
+
+    const ftRows = ftConns.slice(0, 3).map(c => `
+      <div class="source-item">
+        <div class="source-dot live" style="background:var(--blue)"></div>
+        <span style="font-size:12px">⚡ ${c.service || c.schema || c.id}</span>
+        <span style="font-size:10px;color:var(--text-tertiary);margin-left:auto">${c.status || 'sync ok'}</span>
+      </div>
+    `).join('');
+
+    el.innerHTML = (rows + ftRows) || `<div class="source-item"><div class="source-dot demo"></div><span>Demo Mode Active</span></div>`;
+  } catch (_) {
+    /* keep existing placeholder */
   }
 }
 
@@ -242,6 +282,9 @@ function renderTraceView() {
   // Timeline
   renderTimeline(trace.causal_chain || []);
 
+  // Metric time series chart (Chart.js)
+  renderTraceChart(trace);
+
   // Split screen — decision time
   renderMetricsPanel(
     'decision-metrics-panel',
@@ -251,6 +294,9 @@ function renderTraceView() {
 
   // Split screen — outcome time
   renderOutcomePanel('outcome-metrics-panel', trace);
+
+  // Industry benchmarks (before signals — gives context)
+  renderBenchmarks(trace.benchmarks || []);
 
   // Predicted signals
   const signals = document.getElementById('predicted-signals');
@@ -274,6 +320,9 @@ function renderTraceView() {
         `).join('')
       : '<div style="padding:12px;font-size:13px;color:var(--text-tertiary)">Loading alternative explanations from Gemini...</div>';
   }
+
+  // Bradford Hill criteria (before attribution — the deep analysis)
+  renderBradfordHill(trace.bradford_hill);
 
   // Multi-decision attribution table
   const attrEl = document.getElementById('decision-attribution');
@@ -425,6 +474,229 @@ function renderOutcomePanel(elId, trace) {
       <span class="metric-value danger">${(trace.pearson_r * 100 || 87).toFixed(0)}%</span>
     </div>
   `;
+}
+
+/* ── Metric Time Series Chart (Chart.js) ─────────────────────────────────── */
+function renderTraceChart(trace) {
+  const ts = trace.time_series_data;
+  if (!ts || !ts.dates || !ts.dates.length) {
+    const card = document.getElementById('trace-chart-card');
+    if (card) card.style.display = 'none';
+    return;
+  }
+
+  const ctx = document.getElementById('trace-chart');
+  if (!ctx || typeof Chart === 'undefined') return;
+
+  if (window._traceChart) {
+    window._traceChart.destroy();
+    window._traceChart = null;
+  }
+
+  const decisionIdx = ts.decision_index ?? 0;
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  const gridColor = isDark ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.07)';
+  const textColor = isDark ? '#8E8E93' : '#6E6E73';
+
+  const labels = ts.dates.map(d => {
+    try {
+      return new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    } catch (_) { return d; }
+  });
+
+  const churnPct = (ts.churn_rate || []).map(v => +(v * 100).toFixed(2));
+  const npsVals  = ts.nps || [];
+
+  // Larger point at decision date
+  const ptRadius = labels.map((_, i) => i === decisionIdx ? 8 : 4);
+  const ptBgChurn = labels.map((_, i) => i === decisionIdx ? '#FF3B30' : 'rgba(255,59,48,0.8)');
+  const ptBgNPS   = labels.map((_, i) => i === decisionIdx ? '#007AFF' : 'rgba(0,122,255,0.8)');
+
+  window._traceChart = new Chart(ctx, {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Churn Rate (%)',
+          data: churnPct,
+          borderColor: '#FF3B30',
+          backgroundColor: 'rgba(255,59,48,0.07)',
+          fill: true,
+          tension: 0.35,
+          pointBackgroundColor: ptBgChurn,
+          pointRadius: ptRadius,
+          pointHoverRadius: 7,
+          yAxisID: 'yChurn',
+        },
+        {
+          label: 'NPS Score',
+          data: npsVals,
+          borderColor: '#007AFF',
+          backgroundColor: 'transparent',
+          fill: false,
+          tension: 0.35,
+          borderDash: [5, 3],
+          pointBackgroundColor: ptBgNPS,
+          pointRadius: ptRadius,
+          pointHoverRadius: 7,
+          yAxisID: 'yNPS',
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { labels: { color: textColor, font: { size: 12 }, boxWidth: 14 } },
+        tooltip: {
+          callbacks: {
+            afterBody: (items) => {
+              if (items[0]?.dataIndex === decisionIdx) return ['  ⚡ DECISION DATE'];
+              return [];
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: textColor, maxRotation: 0, font: { size: 11 } },
+          grid:  { color: gridColor },
+        },
+        yChurn: {
+          type: 'linear',
+          position: 'left',
+          title: { display: true, text: 'Churn Rate (%)', color: '#FF3B30', font: { size: 11 } },
+          ticks: { color: '#FF3B30', callback: v => v + '%', font: { size: 11 } },
+          grid:  { color: gridColor },
+        },
+        yNPS: {
+          type: 'linear',
+          position: 'right',
+          title: { display: true, text: 'NPS', color: '#007AFF', font: { size: 11 } },
+          ticks: { color: '#007AFF', font: { size: 11 } },
+          grid:  { drawOnChartArea: false },
+        },
+      },
+    },
+    plugins: [{
+      id: 'decisionLine',
+      afterDraw(chart) {
+        if (decisionIdx < 0 || decisionIdx >= (chart.data.labels || []).length) return;
+        const { ctx: c2, chartArea } = chart;
+        const meta = chart.getDatasetMeta(0);
+        const pt   = meta.data[decisionIdx];
+        if (!pt) return;
+        const x = pt.x;
+        c2.save();
+        c2.strokeStyle = '#FF9500';
+        c2.lineWidth = 2;
+        c2.setLineDash([6, 3]);
+        c2.globalAlpha = 0.85;
+        c2.beginPath();
+        c2.moveTo(x, chartArea.top);
+        c2.lineTo(x, chartArea.bottom);
+        c2.stroke();
+        c2.globalAlpha = 1;
+        c2.fillStyle = '#FF9500';
+        c2.font = '11px -apple-system, BlinkMacSystemFont, sans-serif';
+        c2.fillText('Decision', x + 5, chartArea.top + 14);
+        c2.restore();
+      },
+    }],
+  });
+}
+
+/* ── Bradford Hill Criteria Rendering ───────────────────────────────────── */
+function renderBradfordHill(bh) {
+  const el = document.getElementById('bradford-hill-panel');
+  if (!el || !bh) return;
+
+  const strengthColors = {
+    strong:       'var(--red)',
+    moderate:     'var(--yellow)',
+    weak:         'var(--text-secondary)',
+    insufficient: 'var(--text-tertiary)',
+  };
+  const strengthColor = strengthColors[bh.causal_strength] || 'var(--text-secondary)';
+  const scorePct = Math.round((bh.total_score || 0) * 100);
+
+  el.innerHTML = `
+    <div style="padding:16px 18px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+        <div style="text-align:center;min-width:64px">
+          <div style="font-size:28px;font-weight:800;color:${strengthColor};line-height:1">${scorePct}%</div>
+          <div style="font-size:10px;color:var(--text-tertiary);margin-top:2px">BH Score</div>
+        </div>
+        <div style="flex:1;min-width:200px">
+          <div style="font-size:13px;font-weight:700;margin-bottom:4px">${bh.causal_strength_text}</div>
+          <div style="font-size:11px;color:var(--text-tertiary)">${bh.criteria_met}/9 criteria met · ${bh.methodology?.split('.')[0] || ''}</div>
+          <div style="height:6px;background:var(--surface-2);border-radius:3px;margin-top:10px;overflow:hidden">
+            <div style="height:100%;background:${strengthColor};width:${scorePct}%;border-radius:3px;transition:width 1s ease"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+    ${(bh.criteria || []).map(c => `
+      <div style="padding:10px 16px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px">
+        <div style="min-width:18px;font-size:13px;line-height:1.4">${c.met ? '✅' : (c.score >= 0.4 ? '🟡' : '❌')}</div>
+        <div style="flex:1">
+          <div style="font-size:12px;font-weight:${c.met ? '700' : '500'};color:${c.met ? 'var(--text-primary)' : 'var(--text-secondary)'}">${c.label}</div>
+          <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px;line-height:1.5">${c.evidence}</div>
+        </div>
+        <div style="min-width:36px;text-align:right">
+          <span style="font-size:12px;font-weight:700;color:${c.score >= 0.7 ? 'var(--green)' : c.score >= 0.4 ? 'var(--yellow)' : 'var(--text-tertiary)'}">${Math.round(c.score * 100)}%</span>
+        </div>
+      </div>
+    `).join('')}
+    <div style="padding:8px 16px;font-size:10px;color:var(--text-tertiary)">${bh.methodology || ''}</div>
+  `;
+}
+
+/* ── Industry Benchmarks Rendering ──────────────────────────────────────── */
+function renderBenchmarks(benchmarks) {
+  const el = document.getElementById('benchmarks-panel');
+  if (!el) return;
+
+  if (!benchmarks || !benchmarks.length) {
+    el.innerHTML = '<div style="padding:12px;font-size:12px;color:var(--text-tertiary)">No benchmark data available for current metrics.</div>';
+    return;
+  }
+
+  const colorMap = { red: 'var(--red)', yellow: 'var(--yellow)', green: 'var(--green)', blue: 'var(--blue)' };
+
+  el.innerHTML = benchmarks.map(b => {
+    const color = colorMap[b.color] || 'var(--text-secondary)';
+    const pct   = b.percentile_rank || 50;
+    return `
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;flex-wrap:wrap;gap:6px">
+          <div>
+            <span style="font-size:13px;font-weight:700">${_fmtKey(b.metric)}</span>
+            <span style="font-size:13px;color:var(--text-secondary);margin-left:10px">
+              Your value: <strong style="color:${color}">${b.value_str}</strong>
+            </span>
+            <span style="font-size:12px;color:var(--text-tertiary);margin-left:6px">
+              vs. industry median: <strong>${b.industry_median_str}</strong>
+            </span>
+          </div>
+          <span style="font-size:11px;font-weight:700;color:${color};background:${color}20;padding:3px 10px;border-radius:4px">${b.label}</span>
+        </div>
+        <!-- Percentile bar: gradient red→green, marker at your percentile -->
+        <div style="position:relative;height:8px;background:var(--surface-2);border-radius:4px;margin-bottom:8px;overflow:visible">
+          <div style="position:absolute;inset:0;background:linear-gradient(90deg,#FF3B30 0%,#FF9500 40%,#30D158 80%);border-radius:4px;opacity:0.25"></div>
+          <div style="position:absolute;width:2px;height:14px;background:${color};border-radius:2px;top:-3px;left:${pct}%;transform:translateX(-50%);box-shadow:0 0 4px ${color}"></div>
+          <div style="position:absolute;font-size:9px;color:${color};top:12px;left:${pct}%;transform:translateX(-50%);white-space:nowrap">${b.label}</div>
+          <!-- Axis labels -->
+          <div style="position:absolute;font-size:9px;color:var(--text-tertiary);top:12px;left:0">p10</div>
+          <div style="position:absolute;font-size:9px;color:var(--text-tertiary);top:12px;left:50%;transform:translateX(-50%)">median</div>
+          <div style="position:absolute;font-size:9px;color:var(--text-tertiary);top:12px;right:0">p90</div>
+        </div>
+        <div style="margin-top:20px;font-size:11px;color:var(--text-tertiary);line-height:1.5">${b.context || b.interpretation}</div>
+        <div style="font-size:10px;color:var(--text-tertiary);margin-top:4px">Source: ${b.source} · n=${(b.n_companies||0).toLocaleString()} companies</div>
+      </div>
+    `;
+  }).join('');
 }
 
 /* ── Decision detail modal ────────────────────────────────────────────────── */

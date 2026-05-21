@@ -154,8 +154,8 @@ async def check_bigquery():
         ts = await get_real_time_series("acmesaas")
         if ts:
             import os; proj = os.getenv("GOOGLE_PROJECT_ID","not set")
-        row(OK, "BigQuery connection",          f"project={proj}")
-            row(OK, "acmesaas_metrics rows",        f"{ts['n_rows']} rows ({ts['dates'][0]} → {ts['dates'][-1]})")
+            row(OK, "BigQuery connection",          f"project={proj}")
+            row(OK, "acmesaas_metrics rows",        f"{ts['n_rows']} rows ({ts['dates'][0]} -> {ts['dates'][-1]})")
             row(OK, "Decision date in data",        f"{ts['decision_date']} (index {ts['decision_index']})")
             row(OK, "NPS at decision",              f"{ts['nps'][ts['decision_index']]}")
             row(OK, "Churn at decision",            f"{ts['churn_rate'][ts['decision_index']]:.1%}")

@@ -1,8 +1,11 @@
 import json
+import logging
 import warnings
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import numpy as np
+
+log = logging.getLogger("sentinel.causal_tracer")
 
 try:
     from scipy import stats as scipy_stats
@@ -19,6 +22,8 @@ except ImportError:
 
 from ..db import mongodb
 from .gemini_client import analyze_causal_chain, generate_causal_narrative, generate_confounding_factors
+from .bradford_hill import score_bradford_hill
+from .industry_benchmarks import get_all_benchmarks
 
 
 # ── Statistical causal inference battery ─────────────────────────────────────
@@ -136,7 +141,7 @@ def _interrupted_time_series(
         "slope_after": round(float(post_slope), 4),
         "slope_change": round(float(slope_change), 4),
         "slope_change_pct": round(float(pct_change), 1),
-        "significant": abs(slope_change) > abs(pre_slope) * 0.2,  # >20% slope shift
+        "significant": bool(abs(slope_change) > abs(pre_slope) * 0.2),  # >20% slope shift
         "interpretation": (
             f"Pre-decision trend: {pre_slope:+.3f}/week -> Post-decision trend: {post_slope:+.3f}/week. "
             f"Slope changed by {slope_change:+.3f} ({pct_change:.0f}% shift) after the decision."
@@ -166,17 +171,19 @@ def _mann_whitney_pre_post(
 
     try:
         u_stat, p_value = scipy_stats.mannwhitneyu(pre, post, alternative="two-sided")
+        p_val = float(p_value)   # convert numpy scalar to Python float for JSON safety
+        u_val = float(u_stat)
         return {
-            "u_stat": round(float(u_stat), 2),
-            "p_value": round(float(p_value), 4),
-            "significant": p_value < 0.15,  # 0.15 threshold appropriate for N<10 observational data
-            "pre_median": round(float(np.median(pre)), 3),
+            "u_stat": round(u_val, 2),
+            "p_value": round(p_val, 4),
+            "significant": p_val < 0.15,  # 0.15 threshold appropriate for N<10 observational data
+            "pre_median":  round(float(np.median(pre)), 3),
             "post_median": round(float(np.median(post)), 3),
             "interpretation": (
-                f"Pre-decision median: {np.median(pre):.3f} -> Post-decision median: {np.median(post):.3f}. "
-                + (f"U={u_stat:.0f}, p={p_value:.4f} — distributions differ significantly (p<0.05)."
-                   if p_value < 0.05
-                   else f"U={u_stat:.0f}, p={p_value:.4f} — distributions do NOT differ significantly.")
+                f"Pre-decision median: {float(np.median(pre)):.3f} -> Post-decision median: {float(np.median(post)):.3f}. "
+                + (f"U={u_val:.0f}, p={p_val:.4f} — distributions differ significantly (p<0.05)."
+                   if p_val < 0.05
+                   else f"U={u_val:.0f}, p={p_val:.4f} — distributions do NOT differ significantly.")
             ),
         }
     except Exception as e:
@@ -655,12 +662,26 @@ async def _build_demo_trace(scenario: str) -> Dict[str, Any]:
         data_source = "structured_fallback"
         n_data_points = 7
 
-    # Multi-decision attribution (ranked by causal signal)
+    # ── Facts always come from scenario registry (not BigQuery) ─────────────
+    root_decision = facts["root_decision"]
+    outcome_desc  = facts["outcome_description"]
+
+    # ── Bradford Hill criteria scoring ────────────────────────────────────────
+    bradford_hill_result = score_bradford_hill(
+        causal_analysis=causal_analysis,
+        root_decision=root_decision,
+        causal_chain=causal_chain,
+        data_signals=data_signals,
+        days_of_warning=days_of_warning,
+    )
+
+    # ── Industry benchmark comparisons ────────────────────────────────────────
+    benchmarks = get_all_benchmarks(current_metrics)
+
+    # ── Multi-decision attribution (ranked by causal signal) ──────────────────
     decision_attribution = _rank_candidate_decisions(scenario)
 
     # ── Gemini: narrative + confounding factors (always live) ─────────────────
-    root_decision = facts["root_decision"]
-    outcome_desc = facts["outcome_description"]
 
     narrative_coro = generate_causal_narrative(
         outcome=outcome_desc,
@@ -680,6 +701,47 @@ async def _build_demo_trace(scenario: str) -> Dict[str, Any]:
     )
     narrative, confounding_factors = await asyncio.gather(narrative_coro, confounding_coro)
 
+    # ── Time series data for frontend chart ───────────────────────────────────
+    if ts:
+        time_series_data = {
+            "dates":          ts["dates"],
+            "nps":            ts["nps"],
+            "churn_rate":     ts["churn_rate"],
+            "mrr":            ts["mrr"],
+            "decision_index": decision_index,
+            "decision_date":  ts.get("decision_date"),
+        }
+    else:
+        # Fallback: derive weekly dates from the known decision date
+        from datetime import timedelta
+        fallback_ts = facts.get("time_series", {})
+        nps_vals   = fallback_ts.get("nps_values", [])
+        churn_vals = fallback_ts.get("churn_values", [])
+        dec_idx    = fallback_ts.get("nps_decision_index", 2)
+        if nps_vals:
+            import datetime as _dt
+            dec_str = root_decision.get("logged_at", "")[:10]
+            try:
+                dec_date = _dt.date.fromisoformat(dec_str)
+                n_before = dec_idx
+                n_after  = len(nps_vals) - dec_idx - 1
+                dates = (
+                    [str(dec_date - timedelta(weeks=n_before - i)) for i in range(n_before)]
+                    + [str(dec_date)]
+                    + [str(dec_date + timedelta(weeks=i + 1)) for i in range(n_after)]
+                )
+            except Exception:
+                dates = [f"Week {i+1}" for i in range(len(nps_vals))]
+            time_series_data = {
+                "dates":          dates,
+                "nps":            nps_vals,
+                "churn_rate":     churn_vals,
+                "decision_index": dec_idx,
+                "decision_date":  dec_str,
+            }
+        else:
+            time_series_data = None
+
     return {
         "trace_id": f"TRACE-{scenario.upper()}-001",
         "outcome_description": outcome_desc,
@@ -688,6 +750,9 @@ async def _build_demo_trace(scenario: str) -> Dict[str, Any]:
         "p_value": p_value,
         "correlation_metric": corr_metric,
         "causal_analysis": causal_analysis,
+        "bradford_hill": bradford_hill_result,
+        "benchmarks": benchmarks,
+        "time_series_data": time_series_data,
         "decision_attribution": decision_attribution,
         "n_data_points": n_data_points,
         "days_of_warning": days_of_warning,

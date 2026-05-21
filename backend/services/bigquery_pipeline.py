@@ -301,3 +301,35 @@ def get_current_metrics_from_ts(ts: dict) -> dict:
         "date": str(latest.get("date", "")),
         "source": "bigquery_live",
     }
+
+
+def get_connector_registry() -> dict:
+    """
+    Return all BigQuery tables configured as Fivetran connector destinations.
+    Table names are read exclusively from env vars — nothing hardcoded here.
+
+    Env var format: SENTINEL_BQ_{CONNECTOR_NAME}_TABLE=dataset.table_name
+    Examples:
+        SENTINEL_BQ_ACMESAAS_TABLE=google_sheets.acmesaas_metrics
+        SENTINEL_BQ_HUBSPOT_TABLE=hubspot.contacts_engagement
+        SENTINEL_BQ_STRIPE_TABLE=stripe.subscription_metrics
+        SENTINEL_BQ_SALESFORCE_TABLE=salesforce.opportunity_metrics
+
+    Falls back to the ACMESAAS_TABLE env var (or the built-in default) when no
+    SENTINEL_BQ_* vars are configured, so the app always has at least one source.
+    """
+    registry: dict = {}
+
+    prefix = "SENTINEL_BQ_"
+    suffix = "_TABLE"
+    for key, val in os.environ.items():
+        if key.startswith(prefix) and key.endswith(suffix) and val.strip():
+            connector = key[len(prefix): -len(suffix)].lower()
+            registry[connector] = val.strip()
+
+    # Fallback: always include the built-in Google Sheets connector
+    if not registry:
+        built_in = os.getenv("ACMESAAS_TABLE", "google_sheets.acmesaas_metrics")
+        registry["google_sheets"] = built_in
+
+    return registry
