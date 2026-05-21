@@ -44,6 +44,10 @@ async def agent_chat(req: AgentChatRequest):
         message = f"[demo_scenario={req.demo_scenario}] {message}"
 
     try:
+        import os
+        # Ensure ADK can find the API key
+        if not os.environ.get("GOOGLE_API_KEY"):
+            os.environ["GOOGLE_API_KEY"] = os.environ.get("GEMINI_API_KEY", "")
         from agent.sentinel_agent import run_agent
         response_text = await run_agent(message, session_id=session_id)
     except ImportError:

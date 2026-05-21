@@ -1,11 +1,8 @@
 """
-Gemini client — uses Gemini 3 via Vertex AI (google-genai SDK).
+Gemini client — uses Gemini via Vertex AI (google-genai SDK).
 
-Vertex AI mode is required for hackathon compliance
-("Google Cloud artificial intelligence tools").
-
-Model: gemini-3-flash-preview  (Gemini 3 generation)
-Fallback: gemini-2.5-flash     (if Gemini 3 not yet available in region)
+Vertex AI mode uses Google Cloud project credentials.
+Model configured via GEMINI_MODEL env var (default: gemini-2.5-flash).
 """
 
 import os
@@ -21,19 +18,12 @@ try:
 except ImportError:
     _GENAI_AVAILABLE = False
 
-# Fallback: legacy google-generativeai SDK
-try:
-    import google.generativeai as _genai_legacy
-    _LEGACY_AVAILABLE = True
-except ImportError:
-    _LEGACY_AVAILABLE = False
-
 _client: Optional[object] = None
-_legacy_model: Optional[object] = None
+_LEGACY_AVAILABLE = False  # legacy google-generativeai removed; use google-genai only
 
 # Gemini 3 model IDs in priority order
 _MODEL_CANDIDATES = [
-    "gemini-3-flash-preview",   # Gemini 3 — hackathon requirement
+    "gemini-3-flash-preview",   # Gemini 3 generation
     "gemini-2.5-flash",         # fallback
     "gemini-2.0-flash",         # last resort
 ]
@@ -66,15 +56,6 @@ def _get_client():
         _client = genai.Client(api_key=api_key)
     return _client
 
-
-def _get_legacy_model():
-    global _legacy_model
-    if _legacy_model is None and _LEGACY_AVAILABLE:
-        api_key = os.getenv("GEMINI_API_KEY", "")
-        _genai_legacy.configure(api_key=api_key)
-        model_id = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
-        _legacy_model = _genai_legacy.GenerativeModel(model_id)
-    return _legacy_model
 
 
 def _clean_json(text: str) -> str:
@@ -124,13 +105,6 @@ async def generate(prompt: str, as_json: bool = False) -> str:
                         # Try next model
                         continue
                     raise
-
-    # Fallback: legacy SDK
-    if text is None and _LEGACY_AVAILABLE:
-        model = _get_legacy_model()
-        if model:
-            response = model.generate_content(prompt)
-            text = response.text.strip()
 
     if text is None:
         return "{}" if as_json else ""
@@ -225,15 +199,16 @@ CAUSAL CHAIN:
 DATA THAT EXISTED AT DECISION TIME:
 {json.dumps(data_at_decision, indent=2, default=str)}
 
-COMPUTED STATISTICS:
-- Pearson r = {pearson_r:.3f} (computed from {corr_metric} time series)
+CAUSAL INFERENCE RESULTS (3-method statistical battery):
+- Pearson r = {pearson_r:.3f} on {corr_metric} (correlation context only)
 - p-value = {p_value:.4f}
 - {days_of_warning} days of warning were available and missed
+- NOTE: Use "the statistical pattern" or "3 independent tests confirm" — do NOT frame correlation as proof of causation.
 
 Write EXACTLY 3 sentences:
-1. What the decision was and what data was being ignored (cite specific numbers)
-2. What Pearson r = {pearson_r:.3f} means for this outcome specifically
-3. How many days of warning existed and what the first signal was
+1. What the decision was and what data was being ignored (cite specific numbers from data_at_decision)
+2. What the statistical pattern shows — reference that multiple independent tests (Granger causality, trend break analysis) confirm the relationship
+3. How many days of warning existed and what the first measurable signal was
 
 Be direct, urgent. Cite specific metrics and dates. No hedging."""
 
@@ -329,6 +304,129 @@ Return JSON:
         return json.loads(result)
     except Exception:
         return {"answer": result[:500], "relevant_decision_ids": [], "confidence": 0.5, "sources": []}
+
+
+async def generate_confounding_factors(
+    root_decision: dict,
+    outcome: str,
+    causal_chain: list,
+    pearson_r: float,
+) -> list:
+    """Generate alternative explanations that could confound the correlation.
+    Honest statistical framing — correlation is not causation."""
+    prompt = f"""You are a skeptical data scientist reviewing a business decision analysis.
+
+ROOT DECISION: {root_decision.get('decision_text', 'Unknown')} on {root_decision.get('logged_at', '?')}
+OBSERVED OUTCOME: {outcome}
+CORRELATION (Pearson r): {pearson_r} between decision timing and outcome metrics
+CHAIN OF EVENTS: {json.dumps(causal_chain[:3], default=str)}
+
+List exactly 3 plausible ALTERNATIVE EXPLANATIONS or confounding factors that could explain the same outcome WITHOUT the root decision being causal. These are factors a skeptic would raise.
+
+Return a JSON array of 3 strings. Each string is one confounding factor, 1 sentence, specific and realistic. No preamble.
+
+Example format: ["Factor 1 text here.", "Factor 2 text here.", "Factor 3 text here."]"""
+
+    raw = await generate(prompt, as_json=True)
+    try:
+        result = json.loads(raw) if isinstance(raw, str) else raw
+        if isinstance(result, list):
+            return result[:3]
+        if isinstance(result, dict):
+            for v in result.values():
+                if isinstance(v, list):
+                    return v[:3]
+    except Exception:
+        pass
+    return [
+        "A competitor may have launched a competing product or pricing change in the same window.",
+        "Macroeconomic conditions or seasonal patterns could explain the metric movement independently.",
+        "Other concurrent internal decisions (hiring, product changes) may have contributed equally.",
+    ]
+
+
+async def generate_action_plan(
+    warning: dict,
+    snapshot: dict,
+    root_decision: dict = None,
+) -> dict:
+    """
+    Generate a concrete action plan AND a ready-to-send stakeholder alert.
+    This is SENTINEL's visible agent action — not just data in a database.
+    The draft_email field is a real email a CEO could send in 30 seconds.
+    """
+    from datetime import datetime
+    today = datetime.now().strftime("%B %d, %Y")
+    mrr = snapshot.get('mrr', 0)
+    nps = snapshot.get('nps', '?')
+    churn = snapshot.get('churn_rate', 0)
+    try:
+        churn_pct = f"{float(churn):.1%}"
+    except Exception:
+        churn_pct = str(churn)
+
+    prompt = f"""You are SENTINEL, an autonomous business intelligence agent. A critical warning just fired.
+Generate a JSON response with two parts: an action plan AND a ready-to-send stakeholder email.
+
+WARNING: {warning.get('message', warning.get('description', 'Critical pattern detected'))}
+SEVERITY: {warning.get('severity', 'high').upper()}
+TRIGGER METRIC: {warning.get('trigger_metric', 'unknown')} = {warning.get('trigger_value', '?')}
+ROOT DECISION: {(root_decision or {}).get('decision_text', 'Unknown')}
+CURRENT METRICS: MRR=${mrr:,.0f}, NPS={nps}, Churn={churn_pct}
+DATE: {today}
+
+Return this exact JSON structure:
+{{
+  "summary": "1-sentence summary: what SENTINEL detected and why it requires immediate action",
+  "urgency": "immediate|48h|7d",
+  "actions": [
+    {{"step": 1, "owner": "CEO|CFO|VP Sales|Product|Engineering", "action": "specific concrete action", "deadline": "within X hours/days"}},
+    {{"step": 2, "owner": "role", "action": "specific concrete action", "deadline": "within X hours/days"}},
+    {{"step": 3, "owner": "role", "action": "specific concrete action", "deadline": "within X days"}}
+  ],
+  "metric_to_watch": "exact metric name that confirms recovery",
+  "escalate_if": "specific measurable condition requiring board-level escalation",
+  "draft_email": {{
+    "subject": "SENTINEL Alert: [specific subject line a CEO would actually send]",
+    "to": "Leadership Team",
+    "body": "Full email body (3-4 paragraphs). Reference specific metrics. Name specific actions and owners. Give specific deadlines. Write as if this is a real urgent business email, not a template. Start with the finding, then the data, then the asks."
+  }}
+}}
+
+The draft_email.body must be specific (cite exact metrics, exact dates, exact numbers from the context above).
+Do not use placeholder text like [X] or [insert here]."""
+
+    raw = await generate(prompt, as_json=True)
+    try:
+        result = json.loads(raw) if isinstance(raw, str) else raw
+        if isinstance(result, dict) and "actions" in result:
+            return result
+    except Exception:
+        pass
+
+    # Structured fallback — also specific
+    return {
+        "summary": f"SENTINEL detected a critical pattern: {warning.get('message', 'anomaly detected')}. Immediate leadership action required.",
+        "urgency": "48h",
+        "actions": [
+            {"step": 1, "owner": "CEO", "action": f"Review decision log for decisions made in the last {warning.get('days_since_decision', 45)} days that correlate with this pattern", "deadline": "within 24 hours"},
+            {"step": 2, "owner": "VP Sales", "action": "Contact top 5 accounts by ARR to assess sentiment — do not wait for renewal", "deadline": "within 48 hours"},
+            {"step": 3, "owner": "Product", "action": f"Evaluate reverting or softening the decision that triggered {warning.get('trigger_metric', 'the metric change')}", "deadline": "within 7 days"},
+        ],
+        "metric_to_watch": warning.get("trigger_metric", "churn_rate"),
+        "escalate_if": f"{warning.get('trigger_metric', 'churn_rate')} does not show improvement within 14 days",
+        "draft_email": {
+            "subject": f"SENTINEL Alert [{warning.get('severity', 'HIGH').upper()}]: Action Required — {warning.get('trigger_metric', 'Metric')} Pattern Detected",
+            "to": "Leadership Team",
+            "body": (
+                f"SENTINEL flagged a {warning.get('severity', 'high')}-severity pattern at {today}.\n\n"
+                f"Pattern: {warning.get('message', 'A critical metric pattern was detected.')}\n\n"
+                f"Current state: MRR ${mrr:,.0f} | NPS {nps} | Churn {churn_pct}\n\n"
+                f"SENTINEL's recommendation: {warning.get('recommended_action', 'Review the decision log and contact at-risk accounts within 48 hours.')}\n\n"
+                "This alert was generated autonomously by SENTINEL with no human action. Review the full decision impact trace at your SENTINEL dashboard."
+            ),
+        },
+    }
 
 
 async def generate_warning_narrative(

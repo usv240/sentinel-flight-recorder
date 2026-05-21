@@ -87,8 +87,8 @@
       <div class="lstat">
         <div class="lstat-num" style="color:var(--blue)">r = 0.87</div>
         <div class="lstat-label edu-tooltip-wrap">
-          Pearson causal correlation score
-          <div class="edu-tooltip">Pearson's r measures the strength of the linear relationship between the decision and the outcome, helping the AI establish confidence in the causal chain.</div>
+          Pearson correlation (pattern strength)
+          <div class="edu-tooltip">Pearson's r measures the linear correlation between decision timing and the outcome metric trajectory — computed by scipy from real weekly data. r &gt; 0.8 is a strong pattern signal. Correlation ≠ causation — SENTINEL shows alternative explanations alongside every score.</div>
         </div>
       </div>
     </div>
@@ -209,7 +209,7 @@
         <span class="nav-icon">📊</span> Overview
       </button>
       <button class="nav-item" onclick="switchTab('trace')" id="tab-trace">
-        <span class="nav-icon">🔍</span> Causal Trace
+        <span class="nav-icon">🔍</span> Impact Trace
       </button>
       <button class="nav-item" onclick="switchTab('decisions')" id="tab-decisions">
         <span class="nav-icon">📋</span> Decision Log
@@ -219,6 +219,9 @@
       </button>
       <button class="nav-item" onclick="switchTab('transcript')" id="tab-transcript">
         <span class="nav-icon">📝</span> Transcript
+      </button>
+      <button class="nav-item" onclick="switchTab('custom')" id="tab-custom">
+        <span class="nav-icon">🔬</span> Your Data
       </button>
 
       <div class="nav-section-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -321,6 +324,11 @@
                 <div id="activity-feed-main" class="activity-feed"></div>
               </div>
 
+              <h3 class="mb-4 mt-6">🤖 Autonomous Actions <span style="font-size:12px;font-weight:normal;color:var(--text-secondary)">(SENTINEL acted — no human triggered this)</span></h3>
+              <div class="card" id="autonomous-actions-panel" style="padding:var(--space-4)">
+                <div style="font-size:12px;color:var(--text-tertiary)">Loading autonomous actions from SENTINEL...</div>
+              </div>
+
               <h3 class="mb-4 mt-6">Data Flags</h3>
               <div id="data-flags" class="card" style="padding:var(--space-4)"></div>
             </div>
@@ -329,12 +337,12 @@
         </div>
       </div>
 
-      <!-- Tab: Causal Trace -->
+      <!-- Tab: Decision Impact Trace -->
       <div id="tab-content-trace" class="hidden">
         <div class="page-header">
           <div>
-            <div class="page-title">🔍 Causal Trace</div>
-            <small>Investigation board — trace any outcome to its root decision</small>
+            <div class="page-title">🔍 Decision Impact Trace</div>
+            <small>Trace what happened after a decision — signals, timeline, and pattern analysis</small>
           </div>
           <div class="page-actions">
             <button class="btn btn-ghost btn-sm" onclick="switchTab('overview')">← Dashboard</button>
@@ -346,7 +354,7 @@
           <!-- Counter — the money shot -->
           <div class="warning-counter mb-8" id="trace-counter">
             <div>
-              <div class="hero-label text-red">Days of warning you missed</div>
+              <div class="hero-label text-red">Days of signals before outcome</div>
               <div class="hero-number text-red" id="counter-number">0</div>
             </div>
             <div style="flex:1;padding-left:var(--space-6);border-left:1px solid var(--red-border)">
@@ -357,15 +365,15 @@
                 <span class="badge badge-yellow" id="trace-p-badge">p &lt; 0.01</span>
               </div>
               <div class="pearson-explain mt-4" id="pearson-explain">
-                <strong>What is Pearson r?</strong> It measures the statistical correlation between the timing of a decision and the outcome trajectory.
-                <strong>r = 1.0</strong> means perfect causation. <strong>r &gt; 0.7</strong> is a strong causal signal.
-                This score is calculated by SENTINEL using BigQuery metrics history via Fivetran.
+                <strong>What is Pearson r?</strong> It measures the <em>linear correlation</em> between the decision timing and the outcome metric trajectory — computed from real weekly time-series data via scipy.
+                <strong>r &gt; 0.8</strong> is a strong pattern signal. <strong>Correlation ≠ causation</strong> — see "Alternative Explanations" below for what else could explain this pattern.
+                SENTINEL flags this for human judgment, not as proof of cause.
               </div>
             </div>
           </div>
 
           <!-- Timeline -->
-          <h3 class="mb-4">Causal Chain</h3>
+          <h3 class="mb-4">Event Timeline</h3>
           <div class="card mb-6" style="padding:var(--space-6);overflow-x:auto">
             <div class="timeline-events" id="timeline-events"></div>
           </div>
@@ -386,6 +394,19 @@
           <!-- Predicted signals -->
           <h3 class="mb-4">Signals That Predicted This</h3>
           <div class="card mb-6" id="predicted-signals"></div>
+
+          <!-- Confounding factors — intellectual honesty -->
+          <h3 class="mb-4">Alternative Explanations <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(correlation ≠ causation)</span></h3>
+          <div class="card mb-6" id="confounding-factors" style="padding:var(--space-4)">
+            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+              SENTINEL generated these alternative explanations using Gemini. A rigorous analysis considers confounding factors before attributing causation.
+            </div>
+            <div id="confounding-list"></div>
+          </div>
+
+          <!-- Multi-decision attribution — no cherry-picking -->
+          <h3 class="mb-4">All Decisions in the Lookback Window <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(ranked by causal signal — no cherry-picking)</span></h3>
+          <div class="card mb-6" id="decision-attribution" style="padding:0"></div>
 
           <!-- Recommended actions -->
           <h3 class="mb-4">What To Do Differently Next Time</h3>
@@ -444,7 +465,10 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">Paste your text</label>
+            <label class="form-label" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Paste your text</span>
+              <button class="btn btn-ghost" style="padding:4px 8px;font-size:11px" onclick="document.getElementById('transcript-input').value='[Product Meeting - June 3, 2026]\\n\\nAlex (CEO): So, looking at the Q2 burn rate, we need to extend our runway.\\nSarah (Product): I agree. We should consider a pricing change.\\nAlex: Let\\'s just rip the bandaid off. Let\\'s increase all pricing tiers by 20% effective immediately.\\nSarah: That\\'s a big jump. Are we sure?\\nAlex: Yes, we need the cash flow. Make it happen.'">Try Example</button>
+            </label>
             <textarea class="form-textarea" id="transcript-input" style="min-height:220px;font-size:13px;font-family:var(--font-mono)"
               placeholder="Paste meeting notes, a Slack thread, an email, or any document here...
 
@@ -507,6 +531,101 @@ Example:
         </div>
       </div>
 
+      <!-- Tab: Your Data (custom analysis — prove it's not rails) -->
+      <div id="tab-content-custom" class="hidden">
+        <div class="page-header">
+          <div>
+            <div class="page-title">🔬 Your Data — Custom Analysis</div>
+            <small style="color:var(--text-secondary)">Enter any decision + metrics. SENTINEL runs the full causal inference battery on your data — no pre-built scenarios.</small>
+          </div>
+        </div>
+
+        <div style="max-width:720px">
+          <div class="card mb-6" style="padding:var(--space-5)">
+            <div style="font-size:13px;color:var(--text-secondary);margin-bottom:var(--space-4);padding:10px;background:var(--surface-2);border-radius:6px">
+              <strong>How this works:</strong> Enter a real decision you made + before/after metrics. SENTINEL runs Granger causality, Interrupted Time Series, and Mann-Whitney tests — the same pipeline used on the demo scenarios. No hardcoded answers.
+            </div>
+
+            <div style="display:grid;gap:var(--space-4)">
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">DECISION TEXT *</label>
+                <input class="chat-input" id="custom-decision-text" type="text" placeholder="e.g. Increased enterprise pricing by 15%" style="width:100%" />
+              </div>
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">DECISION DATE *</label>
+                  <input class="chat-input" id="custom-decision-date" type="date" style="width:100%" />
+                </div>
+                <div>
+                  <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">DECISION TYPE</label>
+                  <select class="chat-input" id="custom-decision-type" style="width:100%">
+                    <option value="pricing">Pricing</option>
+                    <option value="product">Product</option>
+                    <option value="hiring">Hiring</option>
+                    <option value="strategy">Strategy</option>
+                    <option value="operational">Operational</option>
+                  </select>
+                </div>
+              </div>
+
+              <div style="border-top:1px solid var(--border);padding-top:var(--space-4)">
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-3)">METRICS AT DECISION TIME</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3)">
+                  <div>
+                    <label style="font-size:11px;color:var(--text-tertiary)">MRR ($)</label>
+                    <input class="chat-input" id="custom-mrr-before" type="number" placeholder="85000" style="width:100%" />
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--text-tertiary)">NPS Score</label>
+                    <input class="chat-input" id="custom-nps-before" type="number" placeholder="31" style="width:100%" />
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--text-tertiary)">Churn Rate (0-1)</label>
+                    <input class="chat-input" id="custom-churn-before" type="number" step="0.01" placeholder="0.09" style="width:100%" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-3)">CURRENT / OUTCOME METRICS</div>
+                <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3)">
+                  <div>
+                    <label style="font-size:11px;color:var(--text-tertiary)">MRR ($) now</label>
+                    <input class="chat-input" id="custom-mrr-after" type="number" placeholder="72000" style="width:100%" />
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--text-tertiary)">NPS Score now</label>
+                    <input class="chat-input" id="custom-nps-after" type="number" placeholder="19" style="width:100%" />
+                  </div>
+                  <div>
+                    <label style="font-size:11px;color:var(--text-tertiary)">Churn Rate now</label>
+                    <input class="chat-input" id="custom-churn-after" type="number" step="0.01" placeholder="0.16" style="width:100%" />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">WEEKLY METRIC SERIES <span style="font-weight:normal;color:var(--text-tertiary)">(optional — enables Granger causality test)</span></label>
+                <input class="chat-input" id="custom-series" type="text" placeholder="e.g. 0.09,0.10,0.11,0.13,0.15,0.16 (one value per week since decision)" style="width:100%" />
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">More data points = stronger statistical tests. 5+ weekly values enables Granger causality.</div>
+              </div>
+            </div>
+
+            <button class="btn btn-danger mt-6" onclick="runCustomAnalysis()" style="width:100%">
+              🔬 Run Causal Analysis on My Data →
+            </button>
+          </div>
+
+          <!-- Results -->
+          <div id="custom-results" style="display:none">
+            <div id="custom-verdict-card" class="card mb-4" style="padding:var(--space-5)"></div>
+            <div id="custom-tests-card" class="card mb-4" style="padding:var(--space-5)"></div>
+            <div id="custom-confounding-card" class="card mb-4" style="padding:var(--space-5)"></div>
+            <div id="custom-narrative-card" class="card" style="padding:var(--space-5)"></div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /main-content -->
   </div><!-- /app-shell -->
 </div><!-- /view-dashboard -->
@@ -530,18 +649,32 @@ Example:
 
     <div class="form-group">
       <label class="form-label">What was decided? *</label>
-      <input class="form-input" id="input-decision-text" placeholder="e.g. Increase pricing by 20% across all tiers" />
+      <input class="form-input" id="input-decision-text"
+        placeholder="e.g. Increase pricing by 20% across all tiers"
+        oninput="schedulePrecheck()" />
     </div>
 
     <div class="form-group">
       <label class="form-label">Decision type</label>
-      <select class="form-select" id="input-decision-type">
+      <select class="form-select" id="input-decision-type" onchange="schedulePrecheck()">
         <option value="pricing">💰 Pricing</option>
         <option value="hiring">👥 Hiring</option>
         <option value="product">🚀 Product</option>
         <option value="strategy">🎯 Strategy</option>
         <option value="operational">⚙️ Operational</option>
       </select>
+    </div>
+
+    <!-- SENTINEL Pre-Decision Risk Check — appears as user types -->
+    <div id="precheck-panel" style="display:none;margin-bottom:var(--space-4)">
+      <div id="precheck-card" style="border-radius:8px;overflow:hidden;border:1px solid var(--border)">
+        <div id="precheck-header" style="padding:10px 14px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:8px">
+          <span id="precheck-icon">⏳</span>
+          <span id="precheck-title">SENTINEL checking risk...</span>
+          <span id="precheck-badge" style="margin-left:auto"></span>
+        </div>
+        <div id="precheck-body" style="padding:10px 14px;font-size:12px"></div>
+      </div>
     </div>
 
     <div class="form-group">

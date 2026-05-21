@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 
 # ── Directory setup ───────────────────────────────────────────────────────────
 BASE = Path("outputs/sentinel")
-DIRS = ["sessions", "decisions", "traces", "warnings", "asks", "demo"]
+DIRS = ["sessions", "decisions", "traces", "warnings", "asks", "demo", "actions"]
 for d in [BASE] + [BASE / d for d in DIRS]:
     d.mkdir(parents=True, exist_ok=True)
 
@@ -407,6 +407,65 @@ def write_demo_load(scenario: str, data: Dict[str, Any]) -> str:
         f"**{meta.get('name', scenario)}** | {len(decisions)} decisions | "
         f"{len(warnings)} warnings | r={trace.get('pearson_r', 0):.2f} | "
         f"File: `{path}`"
+    )
+    return str(path)
+
+
+# ── Autonomous action plan output ────────────────────────────────────────────
+def write_action_plan(action: Dict[str, Any]) -> str:
+    """Write an autonomous action taken by SENTINEL to a file."""
+    ts = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    action_id = action.get("action_id", ts)
+    fname = f"action_{ts}_{action_id}"
+
+    plan = action.get("action_plan", {})
+    actions_md = ""
+    for a in plan.get("actions", []):
+        actions_md += f"**Step {a.get('step', '?')}** [{a.get('owner', '?')}]: {a.get('action', '')} — *{a.get('deadline', '?')}*\n\n"
+
+    md = f"""# 🤖 SENTINEL — Autonomous Action Taken
+**Action ID:** `{action_id}`
+**Triggered by:** Warning `{action.get('triggered_by_warning', 'unknown')}`
+**Severity:** `{action.get('severity', 'unknown').upper()}`
+**Created by:** `{action.get('created_by', 'SENTINEL_MONITOR')}` (autonomous — no human triggered this)
+**Created at:** {action.get('created_at', ts)}
+
+---
+
+## What SENTINEL Detected
+{plan.get('summary', 'Critical pattern detected — immediate review required')}
+
+---
+
+## Action Plan
+**Urgency:** `{plan.get('urgency', '48h')}`
+
+{actions_md or "See action_plan field for details."}
+
+---
+
+## Watch Metric
+Monitor **{plan.get('metric_to_watch', 'unknown')}** for recovery.
+
+## Escalate If
+{plan.get('escalate_if', 'No improvement within 14 days')}
+
+---
+*This action plan was created autonomously by SENTINEL. No human initiated this.*
+*SENTINEL detected the pattern, evaluated severity, generated this plan, and logged it.*
+"""
+
+    path = BASE / "actions" / f"{fname}.md"
+    path.write_text(md, encoding="utf-8")
+    (BASE / "latest_action.md").write_text(md, encoding="utf-8")
+
+    json_path = BASE / "actions" / f"{fname}.json"
+    json_path.write_text(json.dumps(action, indent=2, default=str), encoding="utf-8")
+
+    _log_session(
+        "SENTINEL AUTONOMOUS ACTION",
+        f"**Action ID:** {action_id}\n**Summary:** {plan.get('summary', '')}\n"
+        f"**Urgency:** {plan.get('urgency', '?')} | File: `{path}`"
     )
     return str(path)
 

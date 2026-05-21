@@ -1,4 +1,6 @@
 from fastapi import APIRouter, HTTPException
+from pydantic import BaseModel
+from typing import Optional
 from datetime import datetime
 from ..db.schemas import DecisionLogRequest
 from ..db import mongodb
@@ -13,6 +15,28 @@ _VALID_SCENARIOS = {"acmesaas", "qwikster", ""}
 def _validate_scenario(s: str):
     if s and s not in _VALID_SCENARIOS:
         raise HTTPException(400, f"Invalid demo_scenario '{s}'. Must be: acmesaas, qwikster")
+
+
+class PrecheckRequest(BaseModel):
+    decision_text: str
+    decision_type: str = "strategy"
+    demo_scenario: Optional[str] = None
+
+
+@router.post("/precheck")
+async def precheck_decision(req: PrecheckRequest):
+    """
+    Pre-decision risk analysis. Call this BEFORE logging a decision.
+    Returns risk score, blocking conditions, historical patterns, and alternatives.
+    This is SENTINEL's preventive mode — not just recording, but preventing.
+    """
+    if req.decision_type not in ("pricing", "hiring", "product", "strategy", "operational"):
+        raise HTTPException(400, "decision_type must be: pricing, hiring, product, strategy, operational")
+
+    from ..services.precheck_engine import run_precheck
+    snapshot = await build_metrics_snapshot(req.demo_scenario or None)
+    result = await run_precheck(req.decision_text, req.decision_type, snapshot)
+    return result
 
 
 @router.get("/snapshot")
@@ -55,6 +79,25 @@ async def log_decision(req: DecisionLogRequest, demo_scenario: str = ""):
     except Exception:
         doc["decision_id"] = decision_id
         output_file = write_decision(doc, snapshot)
+
+    # If a precheck_risk was passed and is high, notify Slack
+    # (frontend sets X-Sentinel-Risk header when user proceeds despite warning)
+    precheck_risk = getattr(req, "precheck_risk_level", None)
+    precheck_score = getattr(req, "precheck_risk_score", None)
+    if precheck_risk == "high" and precheck_score:
+        try:
+            from ..services.slack_client import send_precheck_alert
+            import asyncio
+            asyncio.create_task(send_precheck_alert(
+                decision_text=req.decision_text,
+                risk_level=precheck_risk,
+                risk_score=float(precheck_score),
+                blocking_conditions=[],
+                alternatives=[],
+                snapshot=snapshot,
+            ))
+        except Exception:
+            pass
 
     return {
         "decision_id": decision_id,

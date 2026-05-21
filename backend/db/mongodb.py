@@ -90,3 +90,20 @@ async def acknowledge_warning(warning_id: str) -> bool:
         {"warning_id": warning_id}, {"$set": {"acknowledged": True}}
     )
     return result.modified_count > 0
+
+
+async def insert_action(doc: Dict[str, Any]) -> str:
+    """Insert an autonomous action taken by SENTINEL (not by a human)."""
+    db = get_db()
+    action_id = f"ACT-{datetime.utcnow().strftime('%Y%m%d')}-{str(uuid.uuid4())[:6].upper()}"
+    doc["action_id"] = action_id
+    doc["created_at"] = datetime.utcnow()
+    await db.actions.insert_one(doc)
+    return action_id
+
+
+async def get_recent_actions(limit: int = 10) -> List[Dict]:
+    """Get recent autonomous actions taken by SENTINEL."""
+    db = get_db()
+    cursor = db.actions.find({}).sort("created_at", -1).limit(limit)
+    return await cursor.to_list(length=limit)

@@ -139,6 +139,8 @@ def _check_pattern(pattern: Dict, snapshot: Dict) -> Optional[Dict]:
         avg = snapshot.get(f"{pattern['trigger_metric']}_avg", float(metric) / 3)
         if avg and float(metric) > avg * pattern["trigger_threshold"]:
             triggered = True
+            # Override metric to show the multiple, not the raw value
+            metric = round(float(metric) / avg, 1)  # e.g. 3.4 = "3.4x average"
     elif condition == "gt_ratio":
         related = snapshot.get(pattern.get("related_metric", "ltv"))
         if related and float(metric) > float(related) * pattern["trigger_threshold"]:
@@ -152,7 +154,9 @@ def _check_pattern(pattern: Dict, snapshot: Dict) -> Optional[Dict]:
         "trigger_value": float(metric),
         "severity": pattern["severity"],
         "historical_churn_rate": pattern["historical_churn_rate"],
+        "causal_confidence": pattern["historical_churn_rate"],  # same value, clear label
         "description": pattern["description"],
+        "message": pattern["description"],  # pre-filled, overwritten by Gemini below
     }
 
 

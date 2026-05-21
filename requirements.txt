@@ -7,14 +7,12 @@ pydantic-settings==2.7.0
 motor==3.6.0
 pymongo==4.9.2
 
-# Google Cloud — Gemini 3 via Vertex AI (primary SDK, required for hackathon compliance)
+# Google Cloud — Gemini via Vertex AI
 google-genai>=1.16.0
 
 # Google Cloud — BigQuery (Fivetran destination)
 google-cloud-bigquery>=3.25.0
 
-# Legacy Gemini SDK (fallback only)
-google-generativeai==0.8.3
 
 # HTTP
 httpx==0.28.1
@@ -36,6 +34,7 @@ python-dotenv==1.0.1
 python-multipart==0.0.12
 aiofiles==24.1.0
 
-# Statistics — real Pearson r computation
+# Statistics — causal inference battery (Granger, ITS, Mann-Whitney, Pearson r)
 numpy==2.1.3
 scipy==1.14.1
+statsmodels>=0.14.0

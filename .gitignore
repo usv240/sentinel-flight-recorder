@@ -1,22 +1,35 @@
+# Secrets — never commit
 .env
+env-cloud.yaml
+fivetran-mcp/.env.sentinel
+fivetran-mcp/*.json.bak
+
+# Runtime outputs & logs
+outputs/
+server.log
+server_stdout.log
+server_stderr.log
+
+# Private session notes
+PROGRESS.md
+NEXT_PHASE.md
+
+# Internal planning docs — not for public repo
+IMPROVEMENTS.md
+plan/
+
+# Agent setup doc has project-specific IDs
+agent/AGENT_BUILDER_SETUP.md
+
+# Python
 venv/
 __pycache__/
 *.pyc
 *.pyo
 .pytest_cache/
-outputs/sentinel/decisions/
-outputs/sentinel/traces/
-outputs/sentinel/warnings/
-outputs/sentinel/asks/
-outputs/sentinel/sessions/
-outputs/sentinel/demo/
 *.json.bak
-.DS_Store
 *.egg-info/
 dist/
 build/
-
-env-cloud.yaml
-.env
-PROGRESS.md
+.DS_Store
 

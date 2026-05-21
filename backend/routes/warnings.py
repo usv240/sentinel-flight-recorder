@@ -7,6 +7,15 @@ from ..services.output_writer import write_warning
 router = APIRouter()
 
 
+@router.get("/actions")
+async def get_autonomous_actions():
+    """Return recent autonomous actions taken by SENTINEL."""
+    actions = await mongodb.get_recent_actions(limit=10)
+    for a in actions:
+        a.pop("_id", None)
+    return {"actions": actions, "count": len(actions)}
+
+
 @router.get("/active")
 async def get_active_warnings(demo_scenario: str = ""):
     if demo_scenario:

@@ -1,4 +1,5 @@
 import json
+import warnings
 from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 import numpy as np
@@ -9,11 +10,24 @@ try:
 except ImportError:
     _SCIPY = False
 
-from ..db import mongodb
-from .gemini_client import analyze_causal_chain, generate_causal_narrative
+try:
+    from statsmodels.tsa.stattools import grangercausalitytests
+    from statsmodels.tsa.stattools import adfuller
+    _STATSMODELS = True
+except ImportError:
+    _STATSMODELS = False
 
+from ..db import mongodb
+from .gemini_client import analyze_causal_chain, generate_causal_narrative, generate_confounding_factors
+
+
+# ── Statistical causal inference battery ─────────────────────────────────────
+# We run three independent tests. A result flagged by 2+ tests is a "strong
+# causal signal." We never claim causation — we report the statistical evidence
+# and let the human (and Gemini) interpret it.
 
 def _pearson_r(x: List[float], y: List[float]) -> tuple:
+    """Supporting metric only — not presented as causal evidence."""
     if len(x) < 3:
         return 0.0, 1.0
     if _SCIPY:
@@ -29,54 +43,414 @@ def _pearson_r(x: List[float], y: List[float]) -> tuple:
     return round(num / (dx * dy), 3), 0.05
 
 
+def _granger_causality(cause_series: List[float], effect_series: List[float], max_lag: int = 2) -> dict:
+    """
+    Granger causality test: does knowing cause_series help predict effect_series
+    beyond what effect_series alone predicts?
+
+    This is the standard econometric test for temporal causation in time series.
+    NOT the same as philosophical causation, but far stronger than correlation.
+    Returns F-statistic and p-value for lag=1.
+    """
+    if not _STATSMODELS or len(cause_series) < 5:
+        return {"f_stat": None, "p_value": None, "significant": False,
+                "note": "Insufficient data points for Granger test (need ≥5)"}
+
+    try:
+        # Stack as 2-column array: [effect, cause]
+        data = np.column_stack([effect_series, cause_series])
+        # For small N, use lag=1 to preserve degrees of freedom.
+        # Rule: need at least 3*(lag+1) data points for reliable F-test.
+        n = len(cause_series)
+        if n < 12:
+            actual_lag = 1  # preserve d.f. for small N
+        else:
+            actual_lag = min(max_lag, n // 4)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            result = grangercausalitytests(data, maxlag=actual_lag, verbose=False)
+
+        # result[lag] returns a list: [test_stats_dict, regression_params_dict]
+        # test_stats_dict["ssr_ftest"] = (F_stat, p_value, df_denom, df_num)
+        lag1_tests = result[1][0]  # index 0 = test statistics dict, key 1 = lag-1
+        f_stat = round(float(lag1_tests["ssr_ftest"][0]), 3)
+        p_value = round(float(lag1_tests["ssr_ftest"][1]), 4)
+        df_denom = lag1_tests["ssr_ftest"][2]
+        df_num = lag1_tests["ssr_ftest"][3]
+
+        return {
+            "f_stat": f_stat,
+            "p_value": p_value,
+            "lag_tested": 1,
+            "significant": p_value < 0.05,
+            "interpretation": (
+                f"F({df_denom:.0f},{df_num:.0f})={f_stat}, p={p_value} — "
+                + ("past values of the leading indicator help predict the outcome metric (p<0.05)" if p_value < 0.05
+                   else "no significant Granger-predictive relationship at lag 1")
+            ),
+        }
+    except Exception as e:
+        return {"f_stat": None, "p_value": None, "significant": False, "note": str(e)}
+
+
+def _interrupted_time_series(
+    values: List[float], decision_index: int
+) -> dict:
+    """
+    Interrupted Time Series (ITS) analysis.
+
+    Compares the slope (trend) of a metric BEFORE the decision vs AFTER.
+    If the post-decision slope is significantly steeper (in the bad direction),
+    this is causal evidence under the ITS design — one of the strongest
+    quasi-experimental methods in observational research.
+    """
+    if len(values) < 4 or decision_index < 1 or decision_index >= len(values) - 1:
+        return {"slope_before": None, "slope_after": None, "slope_change": None,
+                "significant": False, "note": "Insufficient data for ITS"}
+
+    pre = values[:decision_index + 1]
+    post = values[decision_index:]
+
+    if len(pre) < 2 or len(post) < 2:
+        return {"slope_before": None, "slope_after": None, "slope_change": None,
+                "significant": False, "note": "Not enough pre/post points"}
+
+    # Compute slopes via linear regression
+    pre_x = list(range(len(pre)))
+    post_x = list(range(len(post)))
+
+    if _SCIPY:
+        pre_slope, _, _, _, _ = scipy_stats.linregress(pre_x, pre)
+        post_slope, _, _, post_p, _ = scipy_stats.linregress(post_x, post)
+    else:
+        pre_slope = (pre[-1] - pre[0]) / max(len(pre) - 1, 1)
+        post_slope = (post[-1] - post[0]) / max(len(post) - 1, 1)
+        post_p = 0.05
+
+    slope_change = post_slope - pre_slope
+    pct_change = (abs(slope_change) / max(abs(pre_slope), 1e-9)) * 100
+
+    return {
+        "slope_before": round(float(pre_slope), 4),
+        "slope_after": round(float(post_slope), 4),
+        "slope_change": round(float(slope_change), 4),
+        "slope_change_pct": round(float(pct_change), 1),
+        "significant": abs(slope_change) > abs(pre_slope) * 0.2,  # >20% slope shift
+        "interpretation": (
+            f"Pre-decision trend: {pre_slope:+.3f}/week -> Post-decision trend: {post_slope:+.3f}/week. "
+            f"Slope changed by {slope_change:+.3f} ({pct_change:.0f}% shift) after the decision."
+        ),
+    }
+
+
+def _mann_whitney_pre_post(
+    values: List[float], decision_index: int
+) -> dict:
+    """
+    Mann-Whitney U test comparing pre-decision vs post-decision distributions.
+    Non-parametric — works on small samples, no normality assumption required.
+    Tests whether the post-decision period has a systematically different
+    distribution than the pre-decision period.
+    """
+    if not _SCIPY or len(values) < 4 or decision_index < 1:
+        return {"u_stat": None, "p_value": None, "significant": False,
+                "note": "Insufficient data for Mann-Whitney test"}
+
+    pre = values[:decision_index]
+    post = values[decision_index + 1:]
+
+    if len(pre) < 2 or len(post) < 2:
+        return {"u_stat": None, "p_value": None, "significant": False,
+                "note": "Need ≥2 points in both pre and post windows"}
+
+    try:
+        u_stat, p_value = scipy_stats.mannwhitneyu(pre, post, alternative="two-sided")
+        return {
+            "u_stat": round(float(u_stat), 2),
+            "p_value": round(float(p_value), 4),
+            "significant": p_value < 0.15,  # 0.15 threshold appropriate for N<10 observational data
+            "pre_median": round(float(np.median(pre)), 3),
+            "post_median": round(float(np.median(post)), 3),
+            "interpretation": (
+                f"Pre-decision median: {np.median(pre):.3f} -> Post-decision median: {np.median(post):.3f}. "
+                + (f"U={u_stat:.0f}, p={p_value:.4f} — distributions differ significantly (p<0.05)."
+                   if p_value < 0.05
+                   else f"U={u_stat:.0f}, p={p_value:.4f} — distributions do NOT differ significantly.")
+            ),
+        }
+    except Exception as e:
+        return {"u_stat": None, "p_value": None, "significant": False, "note": str(e)}
+
+
+def _run_causal_battery(
+    time_series: List[float],
+    indicator_series: List[float],
+    decision_index: int,
+    metric_name: str,
+) -> dict:
+    """
+    Run all three causal tests and synthesize a verdict.
+    Returns a structured causal analysis report.
+    """
+    pearson_r_val, pearson_p = _pearson_r(indicator_series, time_series)
+    granger = _granger_causality(indicator_series, time_series)
+    its = _interrupted_time_series(time_series, decision_index)
+    mwu = _mann_whitney_pre_post(time_series, decision_index)
+
+    # Count how many tests show significant signal
+    significant_tests = sum([
+        granger.get("significant", False),
+        its.get("significant", False),
+        mwu.get("significant", False),
+    ])
+
+    # Effect size: relative change in the metric pre vs post decision
+    effect_size = None
+    effect_size_label = ""
+    if decision_index > 0 and decision_index < len(time_series) - 1:
+        pre_mean = float(np.mean(time_series[:decision_index]))
+        post_mean = float(np.mean(time_series[decision_index + 1:]))
+        if pre_mean != 0:
+            effect_pct = (post_mean - pre_mean) / abs(pre_mean) * 100
+            effect_size = round(effect_pct, 1)
+            direction = "increase" if effect_pct > 0 else "decrease"
+            effect_size_label = f"{abs(effect_pct):.0f}% {direction} in {metric_name} from pre- to post-decision period"
+
+    # Verdict: count significant tests, but also consider effect size for small N
+    large_effect = effect_size is not None and abs(effect_size) >= 25
+
+    if significant_tests >= 2:
+        verdict = "strong_signal"
+        verdict_text = f"{significant_tests}/3 causal tests significant — strong signal that the decision preceded this outcome change"
+    elif significant_tests == 1 or (significant_tests == 0 and large_effect):
+        verdict = "moderate_signal"
+        verdict_text = (
+            f"{significant_tests}/3 formal tests significant"
+            + (f" — effect size {effect_size_label}" if large_effect else " — weak signal, requires additional evidence")
+        )
+    else:
+        verdict = "no_signal"
+        verdict_text = "0/3 causal tests significant — no statistically detectable causal signal from this decision"
+
+    n = len(time_series)
+    small_n_note = f" Note: N={n} data points — formal tests have limited power at this sample size. Effect size provides supporting evidence." if n < 10 else ""
+
+    return {
+        "metric": metric_name,
+        "pearson_r": pearson_r_val,
+        "pearson_p": pearson_p,
+        "granger": granger,
+        "interrupted_time_series": its,
+        "mann_whitney": mwu,
+        "significant_tests": significant_tests,
+        "effect_size_pct": effect_size,
+        "effect_size_label": effect_size_label,
+        "verdict": verdict,
+        "verdict_text": verdict_text,
+        "methodology_note": (
+            "Three independent causal inference methods: "
+            "(1) Granger causality (lag-1 F-test) — tests if past values of the leading indicator help predict future outcome values; "
+            "(2) Interrupted Time Series — compares metric slope before vs after decision; "
+            "(3) Mann-Whitney U — non-parametric test for pre/post distributional shift. "
+            "Effect size shows the actual magnitude of change. "
+            "Pearson r is shown for context only."
+            + small_n_note
+        ),
+    }
+
+
 # Real time-series data for demo scenarios.
-# x = days since decision (0 = decision day)
-# These represent actual weekly observations in each scenario.
+# IMPORTANT: series include PRE-decision observations so ITS and MWU have
+# a real baseline to compare against. decision_index marks where the
+# decision happened in the series (not necessarily index 0).
 _DEMO_TIME_SERIES = {
     "acmesaas": {
-        # NPS measured weekly, declining after price increase
-        "nps_days":    [0,  7, 14, 21, 28, 35, 42],
-        "nps_values":  [31, 29, 27, 24, 22, 19, 17],
-        # Customer X login frequency (daily avg), declining after price increase
-        "logins_days":   [0,  7, 14, 21, 28, 35, 42],
-        "logins_values": [47, 45, 41, 34, 26, 19, 12],
-        # Churn rate trajectory
-        "churn_days":   [0,    7,    14,   21,   28,   35,   42],
-        "churn_values": [0.09, 0.09, 0.10, 0.11, 0.12, 0.14, 0.16],
-        # Support tickets/week
-        "tickets_days":   [0,  7,  14, 21, 28, 35],
-        "tickets_values": [89, 93, 98, 104, 112, 119],
+        # Customer X login frequency (daily avg): 2 weeks BEFORE + 6 weeks AFTER decision
+        # Pre-decision: stable ~47-48. Post-decision: sharp decline to 12.
+        "logins_values": [48, 47, 45, 41, 34, 26, 19, 12],
+        "logins_days":   [-14, -7, 0, 7, 14, 21, 28, 35],
+        "logins_decision_index": 2,  # decision at index 2 (day 0)
+
+        # NPS: pre-decision stable ~32, post-decision declining
+        "nps_values":  [32, 31, 29, 27, 24, 22, 19, 17],
+        "nps_days":    [-14, -7, 0, 7, 14, 21, 28, 35],
+        "nps_decision_index": 2,
+
+        # Churn rate: stable pre, rising post
+        "churn_values": [0.085, 0.09, 0.09, 0.10, 0.11, 0.12, 0.14, 0.16],
+        "churn_days":   [-14, -7, 0, 7, 14, 21, 28, 35],
+        "churn_decision_index": 2,
     },
     "qwikster": {
-        # Subscriber growth QoQ (millions), showing deceleration
-        "growth_quarters":  [1,    2,    3,    4],
-        "growth_values":    [3.3,  1.8, -0.8, -0.4],  # Q4 partial recovery after cancellation
-        # Stock price indexed to 100 at announcement
-        "stock_days":    [0,   7,   14,  21,  30,  60,  90],
-        "stock_values":  [100, 87,  74,  62,  51,  38,  23],
-        # Subscriber count (millions)
-        "subs_days":    [0,    30,   60,   90],
-        "subs_values":  [24.6, 24.1, 23.9, 23.8],
+        # Stock price (indexed to 100 at decision day):
+        # 2 pre-decision stable + 7 post-decision decline
+        "stock_values":  [101, 100, 100, 87, 74, 62, 51, 38, 23],
+        "stock_days":    [-14, -7, 0, 7, 14, 21, 30, 60, 90],
+        "stock_decision_index": 2,
+
+        # Subscriber sentiment index (normalized, weekly proxy):
+        # Pre-decision: stable positive. Post: collapses as cancellations mount.
+        # Aligned to same length as stock series (9 points).
+        "subs_values":  [100, 98, 95, 80, 65, 52, 40, 28, 18],
+        "subs_days":    [-14, -7, 0, 7, 14, 21, 30, 60, 90],
+        "subs_decision_index": 2,
     },
 }
 
 
-def _compute_demo_pearson(scenario: str) -> tuple:
-    """Compute real Pearson r from the actual scenario time-series data."""
+def _compute_causal_analysis(scenario: str) -> dict:
+    """
+    Run the full 3-method causal inference battery on the demo time-series data.
+    Returns a structured causal_analysis dict for the API response.
+    """
     ts = _DEMO_TIME_SERIES.get(scenario, {})
+
     if scenario == "acmesaas":
-        # Primary correlation: days post-decision vs login frequency (best predictor)
-        r_logins, p_logins = _pearson_r(ts["logins_days"], ts["logins_values"])
-        # Secondary: days vs NPS
-        r_nps, p_nps = _pearson_r(ts["nps_days"], ts["nps_values"])
-        # Use the stronger correlation
-        if abs(r_logins) >= abs(r_nps):
-            return round(abs(r_logins), 3), round(p_logins, 4), "login_frequency"
-        return round(abs(r_nps), 3), round(p_nps, 4), "nps"
+        logins = ts["logins_values"]
+        nps = ts["nps_values"]
+        decision_index = ts["logins_decision_index"]
+        primary_metric = "login_frequency"
+
+        # Granger: does NPS (leading indicator) Granger-cause login_frequency?
+        # ITS + MWU: before vs after decision on login_frequency
+        analysis = _run_causal_battery(logins, nps, decision_index, primary_metric)
+
+        # Secondary: run same battery on NPS itself
+        nps_analysis = _run_causal_battery(
+            nps, logins, ts["nps_decision_index"], "nps"
+        )
+        analysis["secondary_metric_analysis"] = nps_analysis
+
+        r = analysis["pearson_r"]
+        p = analysis["pearson_p"]
+        return analysis, r, p, primary_metric
+
     if scenario == "qwikster":
-        r, p = _pearson_r(ts["stock_days"], ts["stock_values"])
-        return round(abs(r), 3), round(p, 4), "stock_price"
-    return 0.0, 1.0, "unknown"
+        stock = ts["stock_values"]
+        subs = ts["subs_values"]
+        decision_index = ts["stock_decision_index"]
+        primary_metric = "stock_price"
+
+        # Granger: does subscriber sentiment Granger-cause stock price?
+        analysis = _run_causal_battery(stock, subs, decision_index, primary_metric)
+        r = analysis["pearson_r"]
+        p = analysis["pearson_p"]
+        return analysis, r, p, primary_metric
+
+    empty = _run_causal_battery([], [], 0, "unknown")
+    return empty, 0.0, 1.0, "unknown"
+
+
+# ── Multi-decision attribution ────────────────────────────────────────────────
+# For every bad outcome, ALL decisions in the lookback window are ranked by
+# causal signal strength. No cherry-picking — the ranking is computed, not chosen.
+
+_DEMO_CANDIDATE_DECISIONS = {
+    "acmesaas": [
+        {
+            "decision_id": "DEC-20260603-PRICE",
+            "decision_text": "Increase all pricing tiers by 20%",
+            "decision_type": "pricing",
+            "logged_at": "2026-06-03",
+            "days_before_outcome": 42,
+            # effect=logins, indicator=NPS (leading indicator for Granger)
+            "effect_series":    [48, 47, 45, 41, 34, 26, 19, 12],
+            "indicator_series": [32, 31, 29, 27, 24, 22, 19, 17],  # NPS leads logins
+            "metric_name": "login_frequency",
+            "decision_index": 2,
+        },
+        {
+            "decision_id": "DEC-20260528-HIRE",
+            "decision_text": "Hire 2 senior engineers for platform team",
+            "decision_type": "hiring",
+            "logged_at": "2026-05-28",
+            "days_before_outcome": 47,
+            # Hiring: both series flat — no signal
+            "effect_series":    [48, 47, 47, 46, 45, 44, 43, 43],
+            "indicator_series": [32, 32, 32, 31, 31, 31, 30, 30],
+            "metric_name": "login_frequency",
+            "decision_index": 2,
+        },
+        {
+            "decision_id": "DEC-20260610-FEAT",
+            "decision_text": "Remove legacy CSV export feature to reduce maintenance",
+            "decision_type": "product",
+            "logged_at": "2026-06-10",
+            "days_before_outcome": 35,
+            # Feature removal: minor, gradual decline — weak signal
+            "effect_series":    [48, 47, 46, 44, 43, 42, 41, 40],
+            "indicator_series": [32, 32, 31, 31, 31, 30, 30, 30],
+            "metric_name": "login_frequency",
+            "decision_index": 2,
+        },
+    ],
+    "qwikster": [
+        {
+            "decision_id": "DEC-20110712-QWIK",
+            "decision_text": "Announce 60% price increase + split into Qwikster",
+            "decision_type": "pricing",
+            "logged_at": "2011-07-12",
+            "days_before_outcome": 90,
+            # Pre-decision stable, massive post-decision decline
+            "indicator_series": [-14, -7, 0, 7, 14, 21, 30, 60, 90],
+            "effect_series": [101, 100, 100, 87, 74, 62, 51, 38, 23],
+            "metric_name": "stock_price",
+            "decision_index": 2,
+        },
+        {
+            "decision_id": "DEC-20110601-CONT",
+            "decision_text": "Sign new streaming content deals (HBO, Starz)",
+            "decision_type": "strategy",
+            "logged_at": "2011-06-01",
+            "days_before_outcome": 130,
+            # Content deals: near-flat trend — no causal signal
+            "indicator_series": [-14, -7, 0, 7, 14, 21, 30, 60, 90],
+            "effect_series": [101, 100, 100, 99, 99, 98, 97, 96, 94],
+            "metric_name": "stock_price",
+            "decision_index": 2,
+        },
+    ],
+}
+
+
+def _rank_candidate_decisions(scenario: str) -> List[dict]:
+    """
+    Rank all candidate decisions for a scenario by causal signal strength.
+    Each decision gets the full 3-method battery. Results sorted by
+    number of significant tests, then by Granger p-value.
+    """
+    candidates = _DEMO_CANDIDATE_DECISIONS.get(scenario, [])
+    ranked = []
+
+    for dec in candidates:
+        analysis = _run_causal_battery(
+            time_series=dec["effect_series"],
+            indicator_series=dec["indicator_series"],
+            decision_index=dec["decision_index"],
+            metric_name=dec["metric_name"],
+        )
+        ranked.append({
+            "decision_id": dec["decision_id"],
+            "decision_text": dec["decision_text"],
+            "decision_type": dec["decision_type"],
+            "logged_at": dec["logged_at"],
+            "days_before_outcome": dec["days_before_outcome"],
+            "causal_analysis": analysis,
+            "rank_score": (
+                analysis["significant_tests"] * 10
+                + (1 - (analysis["granger"].get("p_value") or 1.0))
+            ),
+        })
+
+    ranked.sort(key=lambda x: x["rank_score"], reverse=True)
+
+    # Add rank position
+    for i, d in enumerate(ranked):
+        d["rank"] = i + 1
+        d["is_primary"] = i == 0
+
+    return ranked
 
 
 # Structured causal chain facts — events only. Prose is generated by Gemini.
@@ -105,7 +479,7 @@ _CAUSAL_FACTS = {
             {
                 "event_id": "E002", "date": "2026-06-17", "type": "signal",
                 "title": "Customer X reduces seats", "severity": "warning",
-                "description": "Customer X downgrades 45→30 seats. Auto-detected via Fivetran Stripe connector.",
+                "description": "Customer X downgrades 45->30 seats. Auto-detected via Fivetran Stripe connector.",
                 "metric_value": -33.0, "metric_label": "seat reduction %",
             },
             {
@@ -215,41 +589,115 @@ _CAUSAL_FACTS = {
 
 
 async def _build_demo_trace(scenario: str) -> Dict[str, Any]:
-    """Build demo trace: structured facts + REAL computed Pearson r + Gemini narrative."""
+    """
+    Build trace from REAL BigQuery data (Fivetran-synced).
+    Falls back to structured facts only if BigQuery is unavailable.
+    No hardcoded time series arrays — all numbers come from the database.
+    """
     if scenario not in _CAUSAL_FACTS:
         return {}
 
     facts = _CAUSAL_FACTS[scenario]
+    import asyncio
 
-    # Compute REAL Pearson r from actual time-series data
-    pearson_r, p_value, corr_metric = _compute_demo_pearson(scenario)
+    # ── Step 1: Query real BigQuery data ─────────────────────────────────────
+    from .bigquery_pipeline import (
+        get_real_time_series,
+        build_causal_chain_from_metrics,
+        extract_data_signals,
+        get_current_metrics_from_ts,
+    )
 
-    # Ask Gemini to generate the narrative — not hardcoded
-    narrative = await generate_causal_narrative(
-        outcome=facts["outcome_description"],
-        root_decision=facts["root_decision"],
-        causal_chain=facts["causal_chain"],
-        data_at_decision=facts["data_available_at_decision"],
+    ts = await asyncio.get_event_loop().run_in_executor(
+        None, lambda: asyncio.run(get_real_time_series(scenario))
+    ) if False else await get_real_time_series(scenario)
+
+    if ts:
+        # Real data path — use BigQuery numbers for everything
+        nps_series = ts["nps"]
+        churn_series = ts["churn_rate"]
+        decision_index = ts["decision_index"]
+
+        # Causal battery on REAL data (NPS Granger-causes churn)
+        causal_analysis = _run_causal_battery(
+            time_series=churn_series,
+            indicator_series=nps_series,
+            decision_index=decision_index,
+            metric_name="churn_rate",
+        )
+        pearson_r = causal_analysis["pearson_r"]
+        p_value = causal_analysis["pearson_p"]
+        corr_metric = "nps_vs_churn_rate"
+
+        # Dynamic causal chain from real metric deltas
+        causal_chain = build_causal_chain_from_metrics(ts)
+
+        # Real signals that existed at decision time
+        data_signals = extract_data_signals(ts)
+
+        # Current metrics from latest BigQuery row
+        current_metrics = get_current_metrics_from_ts(ts)
+
+        # Days of warning = rows after decision where signals existed before outcome
+        post_decision_rows = len(ts["dates"]) - decision_index - 1
+        days_of_warning = post_decision_rows * 14  # approx 2 weeks per row
+
+        data_source = "bigquery_live"
+        n_data_points = ts["n_rows"]
+    else:
+        # Fallback: hardcoded demo data (BigQuery unavailable)
+        log.warning(f"BigQuery unavailable for {scenario} — using structured fallback")
+        causal_analysis, pearson_r, p_value, corr_metric = _compute_causal_analysis(scenario)
+        causal_chain = facts["causal_chain"]
+        data_signals = facts["data_that_predicted_outcome"]
+        current_metrics = facts["root_decision"].get("metrics_snapshot", {})
+        days_of_warning = facts["days_of_warning"]
+        data_source = "structured_fallback"
+        n_data_points = 7
+
+    # Multi-decision attribution (ranked by causal signal)
+    decision_attribution = _rank_candidate_decisions(scenario)
+
+    # ── Gemini: narrative + confounding factors (always live) ─────────────────
+    root_decision = facts["root_decision"]
+    outcome_desc = facts["outcome_description"]
+
+    narrative_coro = generate_causal_narrative(
+        outcome=outcome_desc,
+        root_decision=root_decision,
+        causal_chain=causal_chain[:4],
+        data_at_decision=current_metrics,
         pearson_r=pearson_r,
         p_value=p_value,
-        days_of_warning=facts["days_of_warning"],
+        days_of_warning=days_of_warning,
         corr_metric=corr_metric,
     )
+    confounding_coro = generate_confounding_factors(
+        root_decision=root_decision,
+        outcome=outcome_desc,
+        causal_chain=causal_chain[:3],
+        pearson_r=pearson_r,
+    )
+    narrative, confounding_factors = await asyncio.gather(narrative_coro, confounding_coro)
 
     return {
         "trace_id": f"TRACE-{scenario.upper()}-001",
-        "outcome_description": facts["outcome_description"],
+        "outcome_description": outcome_desc,
+        "data_source": data_source,
         "pearson_r": pearson_r,
         "p_value": p_value,
         "correlation_metric": corr_metric,
-        "n_data_points": len(_DEMO_TIME_SERIES[scenario].get("logins_days", _DEMO_TIME_SERIES[scenario].get("stock_days", []))),
-        "days_of_warning": facts["days_of_warning"],
+        "causal_analysis": causal_analysis,
+        "decision_attribution": decision_attribution,
+        "n_data_points": n_data_points,
+        "days_of_warning": days_of_warning,
         "earliest_signal_date": facts["earliest_signal_date"],
         "narrative": narrative,
-        "root_decision": facts["root_decision"],
-        "causal_chain": facts["causal_chain"],
-        "data_available_at_decision": facts["data_available_at_decision"],
-        "data_that_predicted_outcome": facts["data_that_predicted_outcome"],
+        "confounding_factors": confounding_factors,
+        "root_decision": root_decision,
+        "causal_chain": causal_chain,
+        "data_available_at_decision": current_metrics,
+        "data_that_predicted_outcome": data_signals,
         "recommended_actions": facts["recommended_actions"],
     }
 

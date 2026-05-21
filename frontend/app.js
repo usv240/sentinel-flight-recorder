@@ -42,7 +42,7 @@ function switchTab(tabId) {
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
   document.getElementById('tab-' + tabId)?.classList.add('active');
 
-  const tabs = ['overview', 'trace', 'decisions', 'ask', 'transcript'];
+  const tabs = ['overview', 'trace', 'decisions', 'ask', 'transcript', 'custom'];
   tabs.forEach(t => {
     const el = document.getElementById('tab-content-' + t);
     if (el) {
@@ -81,6 +81,7 @@ async function loadScenario(scenario) {
 
     renderOverview(data);
     updateDataSourceBadge(data.data_source);
+    loadAutonomousActions();
     addActivity('gemini', '🟣 Gemini: decision pattern analysis complete');
     addActivity('warning', data.warnings.length > 0
       ? `⚠️ ${data.warnings.length} early warning(s) detected`
@@ -146,8 +147,8 @@ function renderWarnings(warnings) {
         <div style="font-size:15px;font-weight:600;margin-bottom:6px;color:var(--text-primary)">${w.message}</div>
         <div style="font-size:13px;color:var(--text-secondary)">${w.recommended_action}</div>
         <div class="flex gap-3 mt-3">
-          <span class="badge badge-blue">${(w.causal_confidence * 100).toFixed(0)}% causal confidence</span>
-          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();switchTab('trace')">View Causal Trace →</button>
+          <span class="badge badge-blue">${(w.causal_confidence * 100).toFixed(0)}% pattern match confidence</span>
+          <button class="btn btn-ghost btn-sm" onclick="event.stopPropagation();switchTab('trace')">View Impact Trace →</button>
         </div>
       </div>
     </div>
@@ -215,7 +216,7 @@ function renderFlags(flags) {
   `).join('');
 }
 
-/* ── Causal Trace View ───────────────────────────────────────────────────── */
+/* ── Decision Impact Trace View ──────────────────────────────────────────── */
 function renderTraceView() {
   const data = window._scenarioData;
   if (!data?.trace) return;
@@ -227,8 +228,16 @@ function renderTraceView() {
 
   document.getElementById('trace-outcome-title').textContent = trace.outcome_description || '';
   document.getElementById('trace-narrative').textContent = trace.narrative || '';
-  document.getElementById('trace-r-badge').textContent = `r = ${(trace.pearson_r || 0).toFixed(2)}`;
-  document.getElementById('trace-p-badge').textContent = `p = ${(trace.p_value || 0).toFixed(3)}`;
+  // Show causal battery result if available, else fall back to Pearson
+  const ca = trace.causal_analysis || {};
+  const sigTests = ca.significant_tests ?? null;
+  if (sigTests !== null) {
+    document.getElementById('trace-r-badge').textContent = `${sigTests}/3 causal tests significant`;
+    document.getElementById('trace-p-badge').textContent = ca.verdict_text?.split(' — ')[0] || `r=${(trace.pearson_r||0).toFixed(2)}`;
+  } else {
+    document.getElementById('trace-r-badge').textContent = `r = ${(trace.pearson_r || 0).toFixed(2)} (correlation)`;
+    document.getElementById('trace-p-badge').textContent = `p = ${(trace.p_value || 0).toFixed(3)}`;
+  }
 
   // Timeline
   renderTimeline(trace.causal_chain || []);
@@ -251,6 +260,49 @@ function renderTraceView() {
       <span>${s}</span>
     </div>
   `).join('');
+
+  // Confounding factors — intellectual honesty
+  const confoundingList = document.getElementById('confounding-list');
+  if (confoundingList) {
+    const factors = trace.confounding_factors || [];
+    confoundingList.innerHTML = factors.length
+      ? factors.map((f, i) => `
+          <div class="flex gap-3" style="padding:var(--space-3);border-bottom:1px solid var(--border);font-size:13px;color:var(--text-secondary)">
+            <span style="color:var(--yellow);font-weight:700">${i + 1}.</span>
+            <span>${f}</span>
+          </div>
+        `).join('')
+      : '<div style="padding:12px;font-size:13px;color:var(--text-tertiary)">Loading alternative explanations from Gemini...</div>';
+  }
+
+  // Multi-decision attribution table
+  const attrEl = document.getElementById('decision-attribution');
+  if (attrEl) {
+    const attribution = trace.decision_attribution || [];
+    if (attribution.length) {
+      attrEl.innerHTML = attribution.map(d => {
+        const ca = d.causal_analysis || {};
+        const sig = ca.significant_tests ?? 0;
+        const rankColor = d.rank === 1 ? 'var(--red)' : d.rank === 2 ? 'var(--yellow)' : 'var(--text-tertiary)';
+        const sigBar = Array(3).fill(0).map((_, i) => `<span style="width:10px;height:10px;border-radius:2px;display:inline-block;background:${i < sig ? rankColor : 'var(--border)'}"></span>`).join('');
+        return `
+          <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px">
+            <span style="font-size:18px;font-weight:800;color:${rankColor};min-width:24px">#${d.rank}</span>
+            <div style="flex:1">
+              <div style="font-size:13px;font-weight:${d.is_primary ? '700' : '500'};color:${d.is_primary ? 'var(--text-primary)' : 'var(--text-secondary)'}">${d.decision_text}</div>
+              <div style="font-size:11px;color:var(--text-tertiary);margin-top:2px">${d.decision_type?.toUpperCase()} · ${d.days_before_outcome} days before outcome · ${d.logged_at}</div>
+            </div>
+            <div style="text-align:right;min-width:140px">
+              <div style="display:flex;gap:3px;justify-content:flex-end;margin-bottom:4px">${sigBar}</div>
+              <div style="font-size:11px;color:${rankColor};font-weight:600">${sig}/3 tests significant</div>
+              <div style="font-size:10px;color:var(--text-tertiary)">${ca.verdict?.replace('_',' ') || '—'}</div>
+            </div>
+          </div>`;
+      }).join('');
+    } else {
+      attrEl.innerHTML = '<div style="padding:12px;font-size:13px;color:var(--text-tertiary)">Loading attribution ranking...</div>';
+    }
+  }
 
   // Recommended actions
   const actions = document.getElementById('recommended-actions');
@@ -361,11 +413,15 @@ function renderOutcomePanel(elId, trace) {
       <span class="metric-value danger">${outcome.metric_value.toLocaleString()}</span>
     </div>` : ''}
     <div class="metric-row">
-      <span class="metric-name">Causal correlation</span>
+      <span class="metric-name edu-tooltip-wrap">Causal correlation
+        <div class="edu-tooltip" style="left:auto;right:0;transform:translateX(0) translateY(10px)">Pearson correlation (r) measures how strongly the root decision’s impact linearly tracks with this negative outcome over time.</div>
+      </span>
       <span class="metric-value" style="color:var(--yellow)">r = ${(trace.pearson_r||0).toFixed(2)}</span>
     </div>
     <div class="metric-row">
-      <span class="metric-name">Confidence</span>
+      <span class="metric-name edu-tooltip-wrap">Confidence
+        <div class="edu-tooltip" style="left:auto;right:0;transform:translateX(0) translateY(10px)">Confidence combines statistical correlation with Gemini's semantic analysis of your meeting transcripts and decision logs.</div>
+      </span>
       <span class="metric-value danger">${(trace.pearson_r * 100 || 87).toFixed(0)}%</span>
     </div>
   `;
@@ -390,11 +446,11 @@ function showDecisionDetail(decisionId) {
       <div class="hero-number text-red" style="font-size:40px">${d.days_of_warning}</div>
       <div style="padding-left:var(--space-4)">
         <div class="hero-label text-red">Days of warning available</div>
-        <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Causal correlation: r = ${(d.causal_correlation||0).toFixed(2)}</div>
+        <div style="font-size:13px;color:var(--text-secondary);margin-top:4px">Correlation (Pearson r): ${(d.causal_correlation||0).toFixed(2)}</div>
       </div>
     </div>` : ''}
     <button class="btn btn-danger" onclick="switchTab('trace');document.getElementById('modal-detail').classList.remove('open')">
-      🔍 View Full Causal Trace →
+      🔍 View Impact Trace →
     </button>
   `;
 
@@ -404,11 +460,160 @@ function showDecisionDetail(decisionId) {
 /* ── Log Decision modal ───────────────────────────────────────────────────── */
 function openLogModal() {
   loadModalMetrics();
+  // Reset precheck state
+  document.getElementById('precheck-panel').style.display = 'none';
+  window._lastPrecheckResult = null;
+  window._precheckTimer = null;
   document.getElementById('modal-log').classList.add('open');
 }
 
 function closeLogModal() {
   document.getElementById('modal-log').classList.remove('open');
+}
+
+// ── Pre-Decision Risk Check (live, debounced) ─────────────────────────────
+let _precheckTimer = null;
+let _lastPrecheckResult = null;
+
+function schedulePrecheck() {
+  clearTimeout(_precheckTimer);
+  const text = document.getElementById('input-decision-text').value.trim();
+  if (text.length < 8) {
+    document.getElementById('precheck-panel').style.display = 'none';
+    return;
+  }
+  // Show "checking..." immediately
+  _showPrecheckLoading();
+  _precheckTimer = setTimeout(runPrecheck, 700); // 700ms debounce
+}
+
+function _showPrecheckLoading() {
+  const panel = document.getElementById('precheck-panel');
+  panel.style.display = 'block';
+  document.getElementById('precheck-header').style.background = 'var(--surface-2)';
+  document.getElementById('precheck-icon').textContent = '⏳';
+  document.getElementById('precheck-title').textContent = 'SENTINEL checking risk...';
+  document.getElementById('precheck-badge').innerHTML = '';
+  document.getElementById('precheck-body').innerHTML = `
+    <div class="gemini-thinking" style="padding:4px 0">
+      <div class="gemini-thinking-dot"></div>
+      <div class="gemini-thinking-dot"></div>
+      <div class="gemini-thinking-dot"></div>
+      <span style="margin-left:6px;color:var(--text-tertiary)">Analyzing against historical patterns...</span>
+    </div>`;
+}
+
+async function runPrecheck() {
+  const text = document.getElementById('input-decision-text').value.trim();
+  const type = document.getElementById('input-decision-type').value;
+  if (text.length < 8) return;
+
+  try {
+    const res = await fetch(`${API}/api/decisions/precheck`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ decision_text: text, decision_type: type, demo_scenario: currentScenario }),
+    });
+    if (!res.ok) return;
+    const data = await res.json();
+    _lastPrecheckResult = data;
+    _renderPrecheckResult(data);
+  } catch (e) {
+    document.getElementById('precheck-panel').style.display = 'none';
+  }
+}
+
+function _renderPrecheckResult(data) {
+  const panel = document.getElementById('precheck-panel');
+  const header = document.getElementById('precheck-header');
+  const icon = document.getElementById('precheck-icon');
+  const title = document.getElementById('precheck-title');
+  const badge = document.getElementById('precheck-badge');
+  const body = document.getElementById('precheck-body');
+
+  const level = data.risk_level || 'low';
+  const score = data.risk_score || 0;
+
+  const config = {
+    high:   { bg: '#FF3B3010', border: 'var(--red)', icon: '🔴', label: 'HIGH RISK' },
+    medium: { bg: '#FF950010', border: 'var(--yellow)', icon: '🟡', label: 'MEDIUM RISK' },
+    low:    { bg: '#30D15810', border: 'var(--green)', icon: '🟢', label: 'LOOKS SAFE' },
+  };
+  const c = config[level] || config.low;
+
+  panel.querySelector('#precheck-card').style.borderColor = c.border;
+  header.style.background = c.bg;
+  icon.textContent = c.icon;
+  title.textContent = `SENTINEL Pre-Decision Check`;
+  badge.innerHTML = `<span style="color:${c.border};font-weight:800;font-size:12px">${c.label} — ${(score*100).toFixed(0)}% risk score</span>`;
+
+  let html = '';
+
+  // Gemini advice (most prominent)
+  if (data.gemini_advice) {
+    html += `<div style="font-size:13px;font-weight:600;color:var(--text-primary);margin-bottom:10px;padding:8px;background:${c.bg};border-radius:4px">${data.gemini_advice}</div>`;
+  }
+
+  // Blocking conditions
+  if (data.blocking_conditions?.length) {
+    html += `<div style="margin-bottom:8px">`;
+    html += data.blocking_conditions.map(cond =>
+      `<div style="font-size:12px;color:var(--text-secondary);padding:3px 0">⚠️ ${cond}</div>`
+    ).join('');
+    html += `</div>`;
+  }
+
+  // Historical matches
+  if (data.pattern_matches?.length) {
+    const pm = data.pattern_matches[0];
+    html += `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">
+      📊 Pattern match: <em>${pm.pattern}</em> — failed in <strong style="color:var(--red)">${(pm.historical_failure_rate*100).toFixed(0)}%</strong> of ${pm.n_examples} historical cases
+    </div>`;
+  }
+
+  // ARR impact
+  if (data.estimated_arr_impact?.low) {
+    const low = Math.abs(data.estimated_arr_impact.low);
+    const high = Math.abs(data.estimated_arr_impact.high);
+    html += `<div style="font-size:12px;color:var(--text-secondary);margin-bottom:8px">
+      💸 Estimated ARR at risk: <strong style="color:var(--red)">$${low.toLocaleString()} – $${high.toLocaleString()}</strong>
+    </div>`;
+  }
+
+  // Alternatives
+  if (level !== 'low' && data.alternative_recommendations?.length) {
+    html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;font-weight:700;color:var(--text-secondary);margin-bottom:4px">SAFER ALTERNATIVES:</div>
+      ${data.alternative_recommendations.slice(0,2).map(a =>
+        `<div style="font-size:12px;color:var(--text-secondary);padding:2px 0">→ ${a}</div>`
+      ).join('')}
+    </div>`;
+  }
+
+  // Safe to proceed when
+  if (level === 'high' && data.safe_to_proceed_when?.length) {
+    html += `<div style="margin-top:8px;font-size:11px;color:var(--text-tertiary)">
+      Proceed safely when: ${data.safe_to_proceed_when.slice(0,2).join(' · ')}
+    </div>`;
+  }
+
+  body.innerHTML = html;
+
+  // Update submit button based on risk level
+  const btn = document.getElementById('btn-submit-decision');
+  if (level === 'high') {
+    btn.textContent = '⚠️ Log Anyway (High Risk — Team Will Be Notified)';
+    btn.style.background = 'var(--yellow)';
+    btn.style.color = '#000';
+  } else if (level === 'medium') {
+    btn.textContent = '✈️ Record Decision (Acknowledged Risk)';
+    btn.style.background = '';
+    btn.style.color = '';
+  } else {
+    btn.textContent = '✈️ Record & Snapshot All Metrics';
+    btn.style.background = '';
+    btn.style.color = '';
+  }
 }
 
 async function loadModalMetrics() {
@@ -476,13 +681,20 @@ async function submitDecision() {
   addActivity('gemini', 'Gemini analyzing decision context...');
 
   try {
+    const precheck = window._lastPrecheckResult;
     const body = {
       decision_text: text,
       decision_type: document.getElementById('input-decision-type').value,
       rationale: document.getElementById('input-rationale').value,
       alternatives_considered: document.getElementById('input-alternatives').value
         .split(',').map(s => s.trim()).filter(Boolean),
+      precheck_risk_level: precheck?.risk_level || null,
+      precheck_risk_score: precheck?.risk_score || null,
     };
+
+    if (precheck?.risk_level === 'high') {
+      addActivity('warning', `⚠️ HIGH RISK decision logged — notifying team on Slack...`);
+    }
 
     const res = await fetch(
       `${API}/api/decisions/log?demo_scenario=${currentScenario || ''}`,
@@ -613,6 +825,79 @@ function renderDecisionsFullTable() {
   `).join('');
 }
 
+/* ── Autonomous Actions Panel ────────────────────────────────────────────── */
+async function loadAutonomousActions() {
+  const panel = document.getElementById('autonomous-actions-panel');
+  if (!panel) return;
+  try {
+    const res = await fetch(`${API}/api/warnings/actions`);
+    const data = await res.json();
+    const actions = data.actions || [];
+
+    if (!actions.length) {
+      panel.innerHTML = `
+        <div style="font-size:12px;color:var(--text-tertiary);padding:8px">
+          No autonomous actions yet. Actions are created automatically when SENTINEL detects a critical warning during its 30-minute monitoring cycle.
+        </div>`;
+      return;
+    }
+
+    panel.innerHTML = actions.map((a, idx) => {
+      const plan = a.action_plan || {};
+      const email = plan.draft_email || {};
+      const urgencyColor = plan.urgency === 'immediate' ? 'var(--red)' : plan.urgency === '48h' ? 'var(--yellow)' : 'var(--blue)';
+      const emailId = `email-body-${idx}`;
+      return `
+        <div style="padding:14px;border-bottom:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <span style="font-size:11px;font-weight:700;color:${urgencyColor};background:${urgencyColor}18;padding:2px 8px;border-radius:4px">
+              🤖 ${(plan.urgency || '?').toUpperCase()} ACTION
+            </span>
+            <span style="font-size:11px;color:var(--text-tertiary)">${_fmtDate(a.created_at)} · created by SENTINEL with no human trigger</span>
+          </div>
+          <div style="font-size:13px;font-weight:600;margin-bottom:8px">${plan.summary || 'Autonomous action plan created'}</div>
+          ${(plan.actions || []).slice(0, 3).map(step =>
+            `<div style="font-size:12px;color:var(--text-secondary);margin-top:3px;padding-left:8px">
+              <span style="color:${urgencyColor};font-weight:700">Step ${step.step}</span> [${step.owner}]: ${step.action}
+              <em style="color:var(--text-tertiary)"> — ${step.deadline}</em>
+            </div>`
+          ).join('')}
+          ${email.subject ? `
+          <div style="margin-top:14px;border:1px solid var(--border);border-radius:8px;overflow:hidden">
+            <div style="background:var(--surface-2);padding:8px 12px;font-size:11px;font-weight:700;color:var(--text-secondary);display:flex;justify-content:space-between;align-items:center">
+              <span>📧 DRAFT STAKEHOLDER ALERT — ready to send</span>
+              <button onclick="copyEmailDraft('${emailId}')" style="background:none;border:1px solid var(--border);border-radius:4px;padding:2px 8px;font-size:11px;cursor:pointer;color:var(--text-primary)">Copy</button>
+            </div>
+            <div style="padding:10px 12px">
+              <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:4px">To: ${email.to || 'Leadership Team'}</div>
+              <div style="font-size:12px;font-weight:600;margin-bottom:8px">Subject: ${email.subject}</div>
+              <div id="${emailId}" style="font-size:12px;color:var(--text-secondary);line-height:1.6;white-space:pre-wrap">${email.body || ''}</div>
+            </div>
+          </div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    panel.innerHTML = `<div style="font-size:12px;color:var(--text-tertiary);padding:8px">Run a monitoring cycle to generate autonomous actions.</div>`;
+  }
+}
+
+function copyEmailDraft(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  navigator.clipboard.writeText(el.textContent).then(() => {
+    const btn = el.closest('.autonomous-actions-panel, div')?.querySelector('button');
+    const orig = btn?.textContent;
+    if (btn) { btn.textContent = 'Copied!'; setTimeout(() => { btn.textContent = orig; }, 1500); }
+  }).catch(() => {
+    const range = document.createRange();
+    range.selectNode(el);
+    window.getSelection().removeAllRanges();
+    window.getSelection().addRange(range);
+    document.execCommand('copy');
+  });
+}
+
 /* ── Agent Activity ──────────────────────────────────────────────────────── */
 function addActivity(type, text) {
   const icons = { fivetran: '⚡', gemini: '🟣', warning: '⚠️', success: '✅' };
@@ -621,7 +906,10 @@ function addActivity(type, text) {
   item.innerHTML = `
     <div class="activity-icon ${type}">${icons[type] || '•'}</div>
     <div>
-      <div>${text}</div>
+      <div class="${type === 'fivetran' ? 'edu-tooltip-wrap' : ''}">
+        ${text}
+        ${type === 'fivetran' ? '<div class="edu-tooltip" style="left:0;transform:translateX(0) translateY(10px)">Model Context Protocol (MCP) enables our Gemini agent to directly trigger real Fivetran syncs and list connections without human intervention.</div>' : ''}
+      </div>
       <div class="activity-time">${_timeAgo()}</div>
     </div>
   `;
@@ -896,6 +1184,124 @@ function _timeAgo() {
 
 function _sleep(ms) {
   return new Promise(r => setTimeout(r, ms));
+}
+
+/* ── Custom Analysis (Your Data) ────────────────────────────────────────── */
+async function runCustomAnalysis() {
+  const decisionText = document.getElementById('custom-decision-text').value.trim();
+  const decisionDate = document.getElementById('custom-decision-date').value;
+  if (!decisionText || !decisionDate) {
+    alert('Decision text and date are required.');
+    return;
+  }
+
+  const payload = {
+    decision_text: decisionText,
+    decision_date: decisionDate,
+    decision_type: document.getElementById('custom-decision-type').value,
+    mrr_at_decision: parseFloat(document.getElementById('custom-mrr-before').value) || null,
+    nps_at_decision: parseFloat(document.getElementById('custom-nps-before').value) || null,
+    churn_at_decision: parseFloat(document.getElementById('custom-churn-before').value) || null,
+    mrr_now: parseFloat(document.getElementById('custom-mrr-after').value) || null,
+    nps_now: parseFloat(document.getElementById('custom-nps-after').value) || null,
+    churn_now: parseFloat(document.getElementById('custom-churn-after').value) || null,
+    metric_weekly_series: document.getElementById('custom-series').value.trim() || null,
+  };
+
+  // Remove nulls
+  Object.keys(payload).forEach(k => { if (payload[k] === null) delete payload[k]; });
+
+  const resultsEl = document.getElementById('custom-results');
+  const verdictEl = document.getElementById('custom-verdict-card');
+  const testsEl = document.getElementById('custom-tests-card');
+  const confoundingEl = document.getElementById('custom-confounding-card');
+  const narrativeEl = document.getElementById('custom-narrative-card');
+
+  resultsEl.style.display = 'block';
+  verdictEl.innerHTML = `<div class="gemini-thinking"><div class="gemini-thinking-dot"></div><div class="gemini-thinking-dot"></div><div class="gemini-thinking-dot"></div><span style="margin-left:6px">Running 3-method causal inference battery...</span></div>`;
+  testsEl.innerHTML = ''; confoundingEl.innerHTML = ''; narrativeEl.innerHTML = '';
+
+  addActivity('gemini', `🔬 Custom analysis: "${decisionText.substring(0,40)}..."`);
+
+  try {
+    const res = await fetch(`${API}/api/custom/analyze`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Analysis failed');
+    }
+    const data = await res.json();
+    renderCustomResults(data, verdictEl, testsEl, confoundingEl, narrativeEl);
+    addActivity('success', `✅ Custom analysis complete — ${data.verdict}`);
+  } catch (e) {
+    verdictEl.innerHTML = `<div class="text-red font-bold">Analysis failed: ${e.message}</div>`;
+  }
+}
+
+function renderCustomResults(data, verdictEl, testsEl, confoundingEl, narrativeEl) {
+  const verdictColors = { strong_signal: 'var(--red)', weak_signal: 'var(--yellow)', no_signal: 'var(--blue)', insufficient_data: 'var(--text-secondary)' };
+  const ca = data.causal_analysis || {};
+
+  // Verdict card
+  verdictEl.innerHTML = `
+    <div style="margin-bottom:12px">
+      <span style="font-size:11px;font-weight:700;color:${verdictColors[data.verdict] || 'var(--text-secondary)'};background:${verdictColors[data.verdict] || 'var(--surface-2)'}22;padding:3px 10px;border-radius:4px;text-transform:uppercase">
+        ${data.verdict.replace('_', ' ')}
+      </span>
+    </div>
+    <div style="font-size:15px;font-weight:600;margin-bottom:8px">${data.verdict_text}</div>
+    <div style="font-size:13px;color:var(--text-secondary)">${data.recommendation}</div>
+    <div style="margin-top:10px;font-size:11px;color:var(--text-tertiary)">
+      Data quality: <strong>${data.data_quality?.quality || '?'}</strong> · ${data.data_quality?.data_points || 0} data points · ${data.data_quality?.metric_used || '?'}
+      ${data.data_quality?.quality !== 'good' ? `<br><em>${data.data_quality?.improve_by || ''}</em>` : ''}
+    </div>`;
+
+  // Statistical tests card
+  const granger = ca.granger || {};
+  const its = ca.interrupted_time_series || {};
+  const mwu = ca.mann_whitney || {};
+  const sig = ca.significant_tests || 0;
+
+  testsEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:12px">3-Method Causal Inference Battery — ${sig}/3 tests significant</div>
+    <div style="font-size:11px;color:var(--text-tertiary);margin-bottom:12px">${ca.methodology_note || ''}</div>
+    ${_renderTestRow('Granger Causality', granger.significant, granger.interpretation || granger.note || '—', granger.p_value != null ? `F-stat: ${granger.f_stat}, p=${granger.p_value}` : '')}
+    ${_renderTestRow('Interrupted Time Series', its.significant, its.interpretation || its.note || '—', its.slope_change != null ? `Slope change: ${its.slope_change > 0 ? '+' : ''}${its.slope_change?.toFixed(4)}` : '')}
+    ${_renderTestRow('Mann-Whitney U', mwu.significant, mwu.interpretation || mwu.note || '—', mwu.p_value != null ? `U=${mwu.u_stat}, p=${mwu.p_value}` : '')}
+    <div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);font-size:12px;color:var(--text-tertiary)">
+      Pearson r = ${(ca.pearson_r || 0).toFixed(3)} (supporting context only — not causal evidence)
+    </div>`;
+
+  // Confounding factors
+  confoundingEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">Alternative Explanations (Gemini-generated)</div>
+    <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:10px">Factors that could explain the same outcome without this decision being causal:</div>
+    ${(data.confounding_factors || []).map((f, i) => `
+      <div style="padding:8px;border-bottom:1px solid var(--border);font-size:13px;color:var(--text-secondary)">
+        <span style="color:var(--yellow);font-weight:700">${i+1}.</span> ${f}
+      </div>`).join('')}`;
+
+  // Narrative
+  narrativeEl.innerHTML = `
+    <div style="font-size:13px;font-weight:700;margin-bottom:10px">SENTINEL Analysis</div>
+    <div style="font-size:14px;line-height:1.7;color:var(--text-primary)">${data.narrative || '—'}</div>`;
+}
+
+function _renderTestRow(name, significant, interpretation, stats) {
+  const icon = significant === true ? '✅' : significant === false ? '❌' : '⚪';
+  const color = significant === true ? 'var(--green)' : significant === false ? 'var(--text-tertiary)' : 'var(--text-secondary)';
+  return `
+    <div style="padding:10px;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+        <span>${icon}</span>
+        <span style="font-size:13px;font-weight:600;color:${color}">${name}</span>
+        ${stats ? `<span style="font-size:11px;color:var(--text-tertiary);margin-left:auto">${stats}</span>` : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);padding-left:24px">${interpretation}</div>
+    </div>`;
 }
 
 /* ── Transcript → Decisions ──────────────────────────────────────────────── */
