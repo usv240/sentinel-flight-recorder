@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http, agent_chat, custom_analysis
+from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http, agent_chat, custom_analysis, slack_events
 # Slack client — initialised lazily, non-fatal if not configured
 from .services.monitor import start_scheduler, stop_scheduler, get_last_cycle_status, run_monitoring_cycle
 
@@ -34,6 +34,7 @@ _ALLOWED_ORIGINS = [
     "https://sentinel-38381883054.us-central1.run.app",
     "https://console.cloud.google.com",
     "https://agent-platform.cloud.google.com",
+    "https://slack.com",
     "http://localhost:8100",
     "http://localhost:8080",
     "http://127.0.0.1:8100",
@@ -100,6 +101,7 @@ app.include_router(toolcalls.router,   prefix="/api/tool-calls",  tags=["tool-ca
 app.include_router(mcp_http.router,    prefix="/api/mcp",         tags=["mcp"])
 app.include_router(agent_chat.router,       prefix="/api/agent",    tags=["agent"])
 app.include_router(custom_analysis.router, prefix="/api/custom",   tags=["custom"])
+app.include_router(slack_events.router,    prefix="/api/slack",    tags=["slack"])
 
 
 @app.get("/api/health")
