@@ -14,15 +14,21 @@ Structure:
 """
 
 import json
+import os
 from pathlib import Path
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
 # ── Directory setup ───────────────────────────────────────────────────────────
-BASE = Path("outputs/sentinel")
+# Cloud Run has a read-only filesystem except /tmp.
+# OUTPUT_DIR env var allows overriding (set to /tmp/sentinel in production).
+BASE = Path(os.getenv("OUTPUT_DIR", "outputs/sentinel"))
 DIRS = ["sessions", "decisions", "traces", "warnings", "asks", "demo", "actions"]
 for d in [BASE] + [BASE / d for d in DIRS]:
-    d.mkdir(parents=True, exist_ok=True)
+    try:
+        d.mkdir(parents=True, exist_ok=True)
+    except OSError:
+        pass  # non-fatal if filesystem is read-only
 
 # ── Session log (accumulates everything in one run) ───────────────────────────
 _session_id = datetime.now().strftime("%Y-%m-%d_%H%M%S")
@@ -34,15 +40,28 @@ def _log_session(event_type: str, content: str):
     ts = datetime.now().strftime("%H:%M:%S")
     entry = f"\n---\n## [{ts}] {event_type}\n{content}\n"
     _session_events.append(entry)
-    with open(_session_file, "a", encoding="utf-8") as f:
-        if len(_session_events) == 1:
-            f.write(f"# SENTINEL Session Log\n**Started:** {_session_id}\n")
-        f.write(entry)
-    # Update latest session pointer
-    (BASE / "latest_session.md").write_text(
+    try:
+        with open(_session_file, "a", encoding="utf-8") as f:
+            if len(_session_events) == 1:
+                f.write(f"# SENTINEL Session Log\n**Started:** {_session_id}\n")
+            f.write(entry)
+    except OSError:
+        pass  # non-fatal on read-only filesystems (Cloud Run without /tmp)
+
+
+def _safe_write(path: Path, content: str):
+    """Write to file, silently skip on read-only filesystems (Cloud Run /tmp)."""
+    try:
+        path.write_text(content, encoding="utf-8")
+    except OSError:
+        pass
+
+
+def _update_latest_session():
+    _safe_write(
+        BASE / "latest_session.md",
         f"# Latest Session: {_session_id}\n[Full log]({_session_file})\n\n" +
         "".join(_session_events[-10:]),
-        encoding="utf-8"
     )
 
 
@@ -127,14 +146,11 @@ def write_decision(decision: Dict[str, Any], snapshot: Dict[str, Any]) -> str:
 """
 
     path = BASE / "decisions" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / "latest_decision.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / "latest_decision.md"), md)
 
     json_path = BASE / "decisions" / f"{fname}.json"
-    json_path.write_text(
-        json.dumps({"decision": decision, "metrics_snapshot": snapshot}, indent=2, default=str),
-        encoding="utf-8",
-    )
+    _safe_write(json_path, json.dumps({"decision": decision, "metrics_snapshot": snapshot}, indent=2, default=str))
 
     _log_session("DECISION LOGGED", f"**{decision.get('decision_text', '')}**\n\nMetrics flags: {len(flags)}\nFile: `{path}`")
     return str(path)
@@ -211,11 +227,11 @@ def write_causal_trace(trace: Dict[str, Any]) -> str:
 """
 
     path = BASE / "traces" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / "latest_causal_trace.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / "latest_causal_trace.md"), md)
 
     json_path = BASE / "traces" / f"{fname}.json"
-    json_path.write_text(json.dumps(trace, indent=2, default=str), encoding="utf-8")
+    _safe_write(json_path, json.dumps(trace, indent=2, default=str))
 
     _log_session(
         "CAUSAL TRACE",
@@ -274,11 +290,11 @@ bad outcomes in {warning.get("causal_confidence", 0):.0%} of historical cases wi
 """
 
     path = BASE / "warnings" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / "latest_warning.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / "latest_warning.md"), md)
 
     json_path = BASE / "warnings" / f"{fname}.json"
-    json_path.write_text(json.dumps(warning, indent=2, default=str), encoding="utf-8")
+    _safe_write(json_path, json.dumps(warning, indent=2, default=str))
 
     _log_session(
         f"WARNING FIRED [{warning.get('severity', '?').upper()}]",
@@ -326,11 +342,11 @@ def write_ask(question: str, answer: Dict[str, Any], scenario: Optional[str] = N
 """
 
     path = BASE / "asks" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / "latest_ask.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / "latest_ask.md"), md)
 
     json_path = BASE / "asks" / f"{fname}.json"
-    json_path.write_text(json.dumps({"question": question, "answer": answer}, indent=2, default=str), encoding="utf-8")
+    _safe_write(json_path, json.dumps({"question": question, "answer": answer}, indent=2, default=str))
 
     _log_session("ASK SENTINEL", f"**Q:** {question}\n\n**A:** {answer.get('answer', '')[:200]}...")
     return str(path)
@@ -396,11 +412,11 @@ def write_demo_load(scenario: str, data: Dict[str, Any]) -> str:
 """
 
     path = BASE / "demo" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / f"latest_demo_{scenario}.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / f"latest_demo_{scenario}.md"), md)
 
     json_path = BASE / "demo" / f"{fname}.json"
-    json_path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+    _safe_write(json_path, json.dumps(data, indent=2, default=str))
 
     _log_session(
         f"DEMO LOADED [{scenario.upper()}]",
@@ -456,11 +472,11 @@ Monitor **{plan.get('metric_to_watch', 'unknown')}** for recovery.
 """
 
     path = BASE / "actions" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / "latest_action.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / "latest_action.md"), md)
 
     json_path = BASE / "actions" / f"{fname}.json"
-    json_path.write_text(json.dumps(action, indent=2, default=str), encoding="utf-8")
+    _safe_write(json_path, json.dumps(action, indent=2, default=str))
 
     _log_session(
         "SENTINEL AUTONOMOUS ACTION",
@@ -508,14 +524,11 @@ def write_transcript_extract(transcript: str, decisions: list, source: str = "me
 """
 
     path = BASE / "decisions" / f"{fname}.md"
-    path.write_text(md, encoding="utf-8")
-    (BASE / "latest_transcript.md").write_text(md, encoding="utf-8")
+    _safe_write(path, md)
+    _safe_write((BASE / "latest_transcript.md"), md)
 
     json_path = BASE / "decisions" / f"{fname}.json"
-    json_path.write_text(
-        json.dumps({"source": source, "decisions": decisions, "transcript_preview": transcript[:500]}, indent=2, default=str),
-        encoding="utf-8",
-    )
+    _safe_write(json_path, json.dumps({"source": source, "decisions": decisions, "transcript_preview": transcript[:500]}, indent=2, default=str))
 
     _log_session(
         "TRANSCRIPT EXTRACTED",
