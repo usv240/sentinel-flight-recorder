@@ -870,22 +870,23 @@
 
           <!-- Counter — always visible, above tabs -->
           <div class="warning-counter mb-6" id="trace-counter">
-            <div>
+            <div style="flex-shrink:0;min-width:140px">
               <div class="hero-label text-red">Days of signals before outcome</div>
               <div class="hero-number text-red" id="counter-number">0</div>
             </div>
             <div style="flex:1;padding-left:var(--space-6);border-left:1px solid var(--red-border)">
               <div style="font-size:15px;font-weight:600;margin-bottom:var(--space-2)" id="trace-outcome-title">Loading...</div>
-              <div style="font-size:13px;color:var(--text-secondary);line-height:1.6" id="trace-narrative"></div>
+              <div style="font-size:13px;color:var(--text-secondary);line-height:1.6;max-width:640px" id="trace-narrative"></div>
               <div class="flex gap-3 mt-4">
                 <span class="badge badge-red" id="trace-r-badge">Loading...</span>
                 <span class="badge badge-yellow" id="trace-p-badge">Loading...</span>
               </div>
-              <div class="pearson-explain mt-4" id="pearson-explain">
-                <strong>What is Pearson r?</strong> It measures the <em>linear correlation</em> between the decision timing and the outcome metric trajectory, computed from real weekly time-series data via scipy.
-                <strong>r &gt; 0.8</strong> is a strong pattern signal. <strong>Correlation is not causation</strong>: see "Causal Analysis" tab for confounding factors.
-              </div>
             </div>
+          </div>
+
+          <!-- Pearson footnote — lives outside the red hero card -->
+          <div id="pearson-explain" class="pearson-explain">
+            <strong>Pearson r</strong> measures linear correlation between decision timing and the outcome metric trajectory, computed from real weekly time-series data via scipy. <strong>r &gt; 0.8</strong> is a strong pattern signal. Correlation is not causation: see the Causal Analysis tab for the full Bradford Hill breakdown.
           </div>
 
           <!-- Inner sub-tabs -->

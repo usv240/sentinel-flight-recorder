@@ -521,8 +521,8 @@ small { font-size: 13px; color: var(--text-secondary); }
 
 .warning-counter {
   display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
+  align-items: flex-start;
+  gap: var(--space-6);
   padding: var(--space-6);
   background: var(--red-dim);
   border: 1px solid var(--red-border);
@@ -550,11 +550,12 @@ small { font-size: 13px; color: var(--text-secondary); }
   align-items: flex-start;
   gap: 0;
   position: relative;
-  padding: 60px var(--space-6) 20px;
+  padding: 40px var(--space-6) 24px;
 }
 
 .timeline-event {
   flex: 1;
+  min-width: 120px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -612,11 +613,11 @@ small { font-size: 13px; color: var(--text-secondary); }
 .event-label {
   margin-top: var(--space-3);
   text-align: center;
-  max-width: 140px;
+  max-width: 120px;
 }
-.event-date { font-size: 11px; color: var(--text-tertiary); margin-bottom: 4px; }
-.event-title { font-size: 13px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
-.event-desc  { font-size: 12px; color: var(--text-secondary); margin-top: 4px; line-height: 1.4; }
+.event-date  { font-size: 11px; color: var(--text-tertiary); margin-bottom: 3px; }
+.event-title { font-size: 12px; font-weight: 600; color: var(--text-primary); line-height: 1.3; }
+.event-desc  { display: none; }
 
 /* Timeline tooltip is now rendered via JS as position:fixed — see renderTimeline() */
 .event-tooltip { display: none; }
@@ -1420,16 +1421,14 @@ small { font-size: 13px; color: var(--text-secondary); }
 
 /* ── Pearson tooltip ─────────────────────────────────────────────────────── */
 .pearson-explain {
-  background: var(--bg-elevated);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: var(--space-4);
-  font-size: 13px;
-  color: var(--text-secondary);
-  margin-top: var(--space-4);
+  font-size: 12px;
+  color: var(--text-tertiary);
+  margin-bottom: var(--space-4);
   line-height: 1.6;
+  padding: var(--space-2) 0;
 }
-.pearson-explain strong { color: var(--text-primary); }
+.pearson-explain:empty { display: none; }
+.pearson-explain strong { color: var(--text-secondary); }
 
 /* ── MCP call trace (agent log) ──────────────────────────────────────────── */
 .mcp-call {
