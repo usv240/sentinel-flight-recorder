@@ -143,11 +143,7 @@ _TOOLS = [
 
 
 async def _call_tool(name: str, arguments: dict) -> str:
-    """Route tool calls to the appropriate backend service."""
-    import httpx
-
-    base = "http://localhost:8080"  # internal call
-
+    """Route tool calls to the appropriate backend service (in-process)."""
     try:
         if name == "list_fivetran_connectors":
             result = await call_mcp_tool("list_connections", {})
@@ -229,6 +225,35 @@ async def _call_tool(name: str, arguments: dict) -> str:
 
     except Exception as e:
         return json.dumps({"error": str(e)})
+
+
+@router.get("")
+async def mcp_discovery():
+    """
+    MCP discovery / health probe.
+
+    The MCP Streamable HTTP transport is POST-driven (JSON-RPC), but Google Cloud
+    Agent Builder / Agent Studio and other MCP hosts often issue a GET to the
+    endpoint first to discover the server before connecting. Returning a clean
+    200 with server metadata + the tool catalogue makes that probe succeed and
+    documents the endpoint for anyone who opens it in a browser.
+    """
+    return JSONResponse(content={
+        "server": {
+            "name": "SENTINEL-Fivetran-MCP",
+            "version": "2.0.0",
+            "description": "SENTINEL Business Flight Recorder — Fivetran MCP proxy for Google Cloud Agent Builder",
+        },
+        "protocolVersion": "2025-03-26",
+        "transport": "streamable-http",
+        "capabilities": {"tools": {"listChanged": False}},
+        "tools": [{"name": t["name"], "description": t["description"]} for t in _TOOLS],
+        "usage": {
+            "connect": "POST JSON-RPC 2.0 to this same URL",
+            "methods": ["initialize", "tools/list", "tools/call"],
+            "agent_builder": "Add as an MCP server in Agent Studio using this URL",
+        },
+    })
 
 
 @router.post("")

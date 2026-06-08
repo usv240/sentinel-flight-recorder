@@ -1,365 +1,231 @@
-# SENTINEL — The Business Flight Recorder
+# SENTINEL: The Business Flight Recorder
 
-**Live:** https://sentinel-38381883054.us-central1.run.app
-**Track:** Fivetran | Google Cloud Rapid Agent Hackathon 2026
+Post a business decision in Slack. SENTINEL pulls your live Fivetran metrics, convenes four AI agents to argue about it in the open, and then keeps a permanent, timestamped record of both the decision and the data behind it. Months later, if the outcome goes wrong, it can run three statistical tests plus Bradford Hill (a causal-evidence framework borrowed from 1965 epidemiology) to check whether that decision actually caused what happened, or whether you're just looking at a coincidence.
 
-Businesses forget why they made decisions. People leave, context is lost, new executives repeat old mistakes. SENTINEL is the flight recorder for your business — it watches every decision, connects it to real outcome data via Fivetran, and fires alerts **before** a bad call destroys revenue.
+[![Apache 2.0 License](https://img.shields.io/badge/license-Apache%202.0-blue)](LICENSE)
+[![Google ADK 2.0](https://img.shields.io/badge/Google%20ADK-2.0-blue)](https://github.com/google/adk-python)
+[![Gemini 3](https://img.shields.io/badge/Gemini-3%20Flash%20Preview-blue)](https://ai.google.dev)
+[![Fivetran MCP](https://img.shields.io/badge/Fivetran-MCP-1f8fff)](https://github.com/fivetran/fivetran-mcp)
+[![FastAPI](https://img.shields.io/badge/FastAPI-async-green)](https://fastapi.tiangolo.com)
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-sentinel-brightgreen)](https://sentinel-38381883054.us-central1.run.app)
 
----
-
-## The Problem
-
-When a pricing change causes churn three months later, nobody remembers what the data looked like on the day the decision was made. The warning was there. Nobody connected the dots.
-
-**SENTINEL fixes that.** Like a flight recorder, it captures every decision at the moment it's made — with a full snapshot of all your Fivetran-connected metrics — so when things go wrong, you can reconstruct exactly why.
+Most companies can tell you *what* happened to a metric. Almost none can tell you *why*, because by the time a number moves, the meeting where someone decided to raise prices or cut a feature is months and several reorgs in the past, and nobody wrote down what the data looked like that day. SENTINEL exists to make that conversation always possible: it watches your data continuously, catches the moment a decision gets made, and keeps a permanent record of both, so when something breaks later, you can actually go back and check.
 
 ---
 
 ## Architecture
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                        SENTINEL Stack                           │
-│                                                                 │
-│  ┌──────────┐    ┌─────────────┐    ┌─────────────────────┐   │
-│  │  Slack   │───▶│  Decision   │───▶│  Gemini 3 Council   │   │
-│  │ Channel  │    │  Detector   │    │  4 parallel agents  │   │
-│  └──────────┘    └─────────────┘    └──────────┬──────────┘   │
-│                                                 │               │
-│  ┌──────────┐    ┌─────────────┐               ▼               │
-│  │ Fivetran │───▶│  BigQuery   │    ┌─────────────────────┐   │
-│  │ MCP (stdio)│  │  Pipeline   │    │   Causal Analysis   │   │
-│  └──────────┘    └─────────────┘    │ Granger + ITS + MWU │   │
-│       │                │            └──────────┬──────────┘   │
-│       ▼                ▼                       ▼               │
-│  ┌──────────┐    ┌─────────────┐    ┌─────────────────────┐   │
-│  │Connector │    │  Metrics:   │    │  Bradford Hill (9)  │   │
-│  │ Registry │    │  NPS/Churn  │    │  Causal Strength    │   │
-│  │ (multi)  │    │  MRR/ARR   │    └──────────┬──────────┘   │
-│  └──────────┘    └─────────────┘              ▼               │
-│                                    ┌─────────────────────┐    │
-│                                    │ Industry Benchmarks │    │
-│                                    │ Medallia/ChurnZero  │    │
-│                                    └─────────────────────┘    │
-│                                                                 │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │             FastAPI Backend (Cloud Run)                   │  │
-│  │  /api/demo  /api/decisions  /api/trace  /api/slack       │  │
-│  │  /api/agent/chat  /api/ask  /api/connectors              │  │
-│  └─────────────────────────────────────────────────────────┘  │
-│                           │                                     │
-│                           ▼                                     │
-│  ┌─────────────────────────────────────────────────────────┐  │
-│  │           Frontend (Vanilla JS + Chart.js 4.4)            │  │
-│  │  Impact Trace | Log Decision | Ask SENTINEL | Your Data   │  │
-│  └─────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    U(["Person"])
+    SL(["Slack"])
+
+    subgraph CLOUD["Google Cloud Run"]
+        direction LR
+        FE["Frontend\nVanilla JS + Chart.js"]
+        BE["Backend\nFastAPI"]
+        FE --> BE
+    end
+
+    subgraph AGENTS["Agents · Google ADK 2.0 · Gemini 3 (Vertex AI fallback)"]
+        direction LR
+        WATCH["Autonomous Monitor\nruns every 30 min"]
+        COUNCIL["Decision Council\nData · Risk · Alternatives · Lead"]
+        ASK["Ask SENTINEL\nvisible multi-step tool trace"]
+    end
+
+    subgraph PIPE["Fivetran  to  BigQuery  to  Causal Engine"]
+        direction LR
+        FT["Fivetran MCP\naccount · connectors · syncs · webhooks"]
+        BQ["BigQuery\nlive metrics"]
+        CAUSAL["Causal Tracer\nGranger + ITS + Mann-Whitney\nBradford Hill 9-criteria score"]
+        FT --> BQ --> CAUSAL
+    end
+
+    U --> CLOUD
+    SL <--> COUNCIL
+    BE <--> AGENTS
+    BE <--> PIPE
+    AGENTS --> CAUSAL
+    WATCH --> FT
+    FT -. "webhook: sync finished" .-> WATCH
 ```
 
-### Data Flow
+Three loops run continuously and all draw on the same memory: an autonomous monitor that watches your Fivetran-synced metrics every 30 minutes and raises warnings before anyone has to ask, a Slack-based Decision Council where four Gemini agents debate a decision out loud before it's made, and a causal tracer that, when an outcome goes wrong, checks whether a logged decision actually explains it.
 
-```
-Fivetran MCP ──sync──▶ BigQuery ──pipeline──▶ Causal Tracer
-                                                    │
-                         ┌──────────────────────────┼────────────────────┐
-                         ▼                          ▼                    ▼
-                Granger Causality        Interrupted Time      Mann-Whitney U
-                (lag-1 F-test)           Series (ITS)          (pre/post dist)
-                         │                          │                    │
-                         └──────────────────────────┼────────────────────┘
-                                                    ▼
-                                         Bradford Hill (1965)
-                                         9 criteria → 0–1 score
-                                         "Causal Strength" label
-                                                    │
-                                                    ▼
-                                      Industry Benchmark Comparison
-                                      Medallia NPS 2024 (n=2,847)
-                                      ChurnZero Churn 2023 (n=1,200)
-```
+→ [Full architecture walkthrough](docs/architecture.md) · [Why we built it this way](docs/adr/) · [Connecting to Google Cloud Agent Builder](AGENT_BUILDER.md)
 
 ---
 
-## Key Features
+## What it does
 
-### 1. Multi-Agent Decision Council (Slack)
-
-Post any business decision in Slack — SENTINEL convenes a 4-agent Gemini 3 council in real-time:
-
-- **Data Agent** — pulls real BigQuery metrics and frames the data context
-- **Risk Agent** — scores probability of bad outcomes based on historical patterns
-- **Alternatives Agent** — proposes 3 alternative approaches with evidence
-- **Lead Agent** — synthesizes all inputs into a go/no-go recommendation
-
-Reply `PLAN` for a 30-60-90 day roadmap, `PROCEED` to log the decision, or `CANCEL` to stand down.
-
-Decision patterns detected:
-- Pricing changes ("increase prices", "raise rates by X%", "new pricing tier")
-- Hiring decisions ("freeze hiring", "reduce headcount", "lay off X people")
-- Product decisions ("sunset feature", "deprecate", "kill the product")
-- Strategy shifts ("pivot to", "change strategy", "new market")
-
-### 2. Impact Trace
-
-Full causal reconstruction showing how a business decision propagated into outcome metrics:
-
-- **Chart.js time-series** with dual Y-axes (NPS + Churn Rate), animated, decision date vertical line
-- **3-method causal inference** — Granger causality, Interrupted Time Series, Mann-Whitney U
-- **Bradford Hill 9-criteria** — research-validated causal strength scoring
-- **Industry benchmarks** — percentile ranking vs. published 2024 SaaS data
-- **Alternative explanations** — confounding factors a skeptic would raise
-- **Attribution ranking** — which decision caused how much of the outcome
-
-### 3. Pre-Decision Precheck
-
-Log a decision before you make it — SENTINEL fires a live risk assessment as you type:
-- Decision type classification
-- Risk level: low / medium / high / critical
-- Specific data-backed warnings
-- Similar past decisions and their outcomes
-
-### 4. Autonomous Monitoring (APScheduler)
-
-Every 30 minutes, SENTINEL autonomously:
-1. Triggers Fivetran MCP sync across all connectors
-2. Pulls latest BigQuery metrics
-3. Runs Gemini 3 pattern analysis
-4. Fires early warnings to Slack before metrics breach critical thresholds
-
-### 5. Fivetran Multi-Connector Registry
-
-Any data source via Fivetran, registered via environment variables:
-
-```bash
-SENTINEL_BQ_ACMESAAS_TABLE=google_sheets.acmesaas_metrics
-SENTINEL_BQ_SHOPIFY_TABLE=shopify.orders_summary
-SENTINEL_BQ_STRIPE_TABLE=stripe.charges_daily
-```
-
-The `/api/connectors/list` endpoint merges live Fivetran connector state with the BigQuery registry — every data source is visible and syncable from the dashboard.
-
-### 6. ADK Agent Chat
-
-`/api/agent/chat` — a Google ADK 2.0 agent backed by Gemini 3, with full scenario context as tools. Ask natural language questions about the decision history; the agent cites specific metrics and decision IDs.
+| Stage | What actually happens |
+|---|---|
+| 1. Watch | Every 30 minutes, and instantly on a Fivetran webhook, SENTINEL pulls fresh metrics from BigQuery and checks them against known warning patterns |
+| 2. Warn | If something looks wrong, it posts to Slack with a drafted action plan, stakeholder emails included, before a human notices |
+| 3. Listen | When someone posts a decision in Slack ("raising prices 20%..."), SENTINEL recognizes it and pulls the metrics that matter right now |
+| 4. Debate | Four Gemini agents (Data, Risk, Alternatives, Lead) argue the decision out loud in the same thread, usually within 60 seconds |
+| 5. Record | The decision is logged with a full, timestamped snapshot of every metric that mattered at that moment, permanently |
+| 6. Trace | Months later, if an outcome goes wrong, SENTINEL runs three statistical tests plus Bradford Hill scoring to check whether a logged decision actually explains it |
 
 ---
 
-## Tech Stack
+## What you get
 
-| Layer | Technology |
-|-------|-----------|
-| LLM | **Gemini 3** (`gemini-3-flash-preview`) via API key |
-| LLM Fallback | Gemini 2.5 Pro/Flash via Vertex AI (quota exhaustion only) |
-| Agent Framework | Google ADK 2.0 |
-| Data Sync | Fivetran MCP (stdio transport) |
-| Data Warehouse | BigQuery (`google_sheets.acmesaas_metrics`) |
-| Backend | FastAPI + Python 3.13 |
-| Frontend | Vanilla JS + Chart.js 4.4 |
-| Database | MongoDB Atlas |
-| Deployment | Google Cloud Run (us-central1, 1Gi RAM) |
-| CI/CD | Google Cloud Build |
+- **Decision recording with live context**: every logged decision carries a full snapshot of NPS, churn, MRR, ARR (or whatever your Fivetran tables track) at the exact moment it was made
+- **Multi-agent Slack council**: four Gemini agents debate every detected decision before it's final, visibly, in the same channel
+- **Impact Trace**: full causal reconstruction with an animated time series, three independent statistical tests, Bradford Hill scoring, industry benchmark percentiles, and Gemini-generated alternative explanations, so correlation never gets mistaken for proof
+- **Pre-decision risk check**: type out a decision before making it and get a live risk score with specific, data-backed objections as you type
+- **Autonomous monitoring**: a 30-minute loop, plus instant webhook reactions, that pulls fresh data, runs pattern analysis, and raises warnings with drafted stakeholder emails. No human has to trigger it
+- **Ask SENTINEL**: a conversational agent that answers questions about your decision history and shows its full multi-step reasoning chain, not just a final answer
+- **Transcript extraction**: paste a meeting transcript or Slack thread and Gemini pulls out every decision worth logging automatically
+- **Full Fivetran platform control**: a dashboard tab that drives account, group, connector, destination, and webhook management through eleven separate MCP tools, live
+- **Bidirectional Fivetran integration**: SENTINEL doesn't just call Fivetran, it also receives webhook events back (HMAC-SHA256 verified) and reacts to them instantly
+- **Honest liveness reporting**: every integration self-reports whether it's live, configured, or running on demo data, so the UI never overclaims
+
+---
+
+## Stack
+
+| Layer | What's running |
+|---|---|
+| Agent framework | [Google ADK 2.0](https://github.com/google/adk-python): code-first agents with `FunctionTool`, returning a visible multi-step `tool_trace` |
+| Primary model | Gemini 3 (`gemini-3-flash-preview`) by API key, through Google AI Studio |
+| Fallback model | Gemini 2.5 Pro / Flash on Vertex AI, automatic and self-reporting, used only when Gemini 3's quota runs out |
+| Data sync | [Fivetran MCP](https://github.com/fivetran/fivetran-mcp) (stdio transport): 11 platform tools spanning account, groups, connectors, destinations, and webhooks |
+| Data warehouse | Google BigQuery |
+| Backend | FastAPI + Python 3.13, fully async |
+| Frontend | Vanilla JS + Chart.js. No framework, no build step |
+| Database | MongoDB Atlas (decisions, warnings, sessions) |
 | Notifications | Slack Events API + Bot |
-| Scheduling | APScheduler (30-min autonomous monitoring) |
-| Statistics | scipy, numpy (Granger, ITS, Mann-Whitney) |
+| Scheduling | APScheduler, running the 30-minute autonomous loop |
+| Statistics | scipy + statsmodels: Granger F-test, ITS regression, Mann-Whitney U |
+| Hosting | Google Cloud Run (us-central1), scales with traffic |
 
 ---
 
-## Gemini 3 — Strict Requirement
+## Causal analysis: how it actually works
 
-SENTINEL enforces Gemini 3 as the primary model. All models tried via API key (Vertex AI does not yet support Gemini 3):
+This is the part that makes SENTINEL different from a normal dashboard. When you ask "did this decision cause that outcome," it doesn't show you a correlation and call it a day.
 
-```python
-_GEMINI3_MODELS = [
-    "gemini-3-flash-preview",        # primary
-    "gemini-3.5-flash",              # fallback 1
-    "gemini-3.1-flash-lite",         # fallback 2
-    "gemini-3.1-flash-lite-preview", # fallback 3
-]
-# Vertex AI used only when ALL Gemini 3 quota exhausted (20 RPD free tier)
-_VERTEX_FALLBACK = ["gemini-2.5-pro", "gemini-2.5-flash"]
-```
+**Three independent statistical tests, run in parallel:**
 
-The active model is always reported in `/api/health` as `gemini_model`. Gemini 3 models are tried first regardless of `GEMINI_MODEL` env var settings.
+1. **Granger causality** (lag-1 F-test): does decision timing help predict the metric's later movement better than chance?
+2. **Interrupted time series**: did the metric's trend change right at the decision date, like a step, rather than drifting gradually?
+3. **Mann-Whitney U**: are the "before" and "after" values genuinely different distributions, or just noise that happens to look different?
 
----
+Each test runs and reports independently. SENTINEL shows all three, not a blended average, because three methods agreeing is much stronger evidence than any one of them alone (and if they disagree, that's worth knowing too).
 
-## Causal Analysis — How It Works
+**Then, Bradford Hill scoring (1965):**
 
-### 3-Method Statistical Battery
+Nine criteria, originally built for arguing that smoking causes cancer, applied here, as far as we know for the first time, to ordinary business decisions:
 
-1. **Granger Causality** — lag-1 F-test: does decision timing predict metric changes better than chance? Reports F-statistic and p-value.
-2. **Interrupted Time Series (ITS)** — measures slope change before vs. after the decision date. Tests if the trend meaningfully shifted.
-3. **Mann-Whitney U** — distributional test: are post-decision values drawn from a statistically different distribution than pre-decision values?
-
-All three methods must agree (or disagree) — SENTINEL reports each independently, not just an aggregate.
-
-### Bradford Hill (1965) Criteria
-
-Nine criteria for causal inference in medicine, applied to business decisions:
-
-| # | Criterion | What SENTINEL Checks |
+| # | Criterion | What SENTINEL checks |
 |---|-----------|---------------------|
-| 1 | Strength | Effect size vs. baseline variance |
-| 2 | Consistency | Pattern reproduced across multiple metrics |
-| 3 | Specificity | Decision timing aligns with outcome onset |
-| 4 | Temporality | Decision provably precedes the outcome |
-| 5 | Biological Gradient | Larger/faster decisions → larger effects |
-| 6 | Plausibility | Business mechanism is logically coherent |
-| 7 | Coherence | Consistent with broader historical data |
-| 8 | Experiment | Evidence from reversal or natural experiment |
-| 9 | Analogy | Similar past decisions had similar outcomes |
+| 1 | Strength | Effect size against baseline variance |
+| 2 | Consistency | Does the pattern reproduce across all three statistical methods? |
+| 3 | Specificity | Does the timing line up specifically with this decision, and not something else? |
+| 4 | Temporality | Does the decision provably come before the outcome? |
+| 5 | Dose-response | Does a bigger decision produce a bigger effect? |
+| 6 | Plausibility | Is there a sensible business mechanism connecting the two? |
+| 7 | Coherence | Is this consistent with the rest of the historical data? |
+| 8 | Experiment | Is there a natural experiment or reversal to compare against? |
+| 9 | Analogy | Have similar past decisions produced similar outcomes? |
 
-**Score ≥ 0.7** → "Strong causal evidence" | **≥ 0.5** → "Moderate" | **< 0.5** → "Weak"
+A criterion counts as "met" at a score of 0.7 or higher. The total is the mean of all nine: **0.75 or above is "Strong,"** **0.55 is "Moderate,"** **0.35 is "Weak,"** and below that is "Insufficient."
 
-### Industry Benchmarks
+*(The live AcmeSaaS trace, built from a real Fivetran-to-BigQuery sync, currently scores 0.839: 7 of 9 criteria met, "Strong," with all three statistical tests agreeing. That's not a scripted number. It's what the running demo actually returns right now.)*
 
-Percentile ranking vs. published 2024 SaaS research:
+**And, for context, real industry benchmarks:**
 
-| Metric | Source | Median | Top Quartile |
-|--------|--------|--------|--------------|
-| NPS | Medallia 2024 (n=2,847) | 44 | 68 |
-| Churn Rate | ChurnZero 2023 (n=1,200) | 6.5% | 4.2% |
-
----
-
-## Demo Scenarios
-
-Two fully playable scenarios, no account required:
-
-| Scenario | Story | Bradford Hill | Warning missed |
-|----------|-------|---------------|----------------|
-| **AcmeSaaS** | Pricing +20% → Churn 14%, NPS 24 | 6/9 criteria, 74% | 34 days |
-| **Netflix Qwikster** | 60% price increase → 800K subscribers lost | 7/9 criteria, 81% | 90 days |
-
-Both scenarios are driven by real BigQuery data (7 rows, Mar–Jul 2026).
+| Metric | Source | p10 | Median | p75 | p90 |
+|--------|--------|-----|--------|-----|-----|
+| NPS | Medallia B2B SaaS 2024 (n = 2,847) | 14 | 44 | 68 | 80 |
+| Churn rate | ChurnZero SaaS 2023 (n = 1,200) | 2.5% | 6.5% | 12% | 18% |
 
 ---
 
-## Quick Start
+## Try it without an account
 
-**Demo mode:**
+Two fully playable scenarios, both backed by live BigQuery data. Click **Explore Demo** on the homepage to walk through either one. No login, no setup.
+
+| Scenario | The decision | What happened | Bradford Hill | The warning |
+|----------|----------|---------|---------------|---------|
+| **AcmeSaaS** | Raise prices 20% while NPS sits at 31 | Churn hit 17%; $120K of ARR gone | 7/9 · 84% | The data showed it coming 34 days early |
+| **Netflix Qwikster** | A 60% price hike plus splitting the service in two | 800K subscribers left; stock fell 77% | 7/9 · 81% | The signal was there before the announcement |
+
+---
+
+## Setup
+
+### What you need
+
+- Python 3.11+
+- A [Google AI Studio API key](https://aistudio.google.com) for Gemini 3 (the free tier caps at 20 requests a day, fine for trying it out, worth upgrading for real use)
+- A Google Cloud project with BigQuery enabled, if you want to connect live data instead of using the demo scenarios
+- A MongoDB Atlas connection string (the free tier works)
+
+### Configure
+
 ```bash
 git clone https://github.com/usv240/sentinel-flight-recorder
 cd sentinel-flight-recorder/sentinel
 pip install -r requirements.txt
-cp .env.example .env   # fill in GEMINI_API_KEY at minimum
-python -m uvicorn backend.main:app --port 8100
-# Open http://localhost:8100 → click "Explore Demo"
+cp .env.example .env
 ```
 
-**Full mode (your own Fivetran data):**
+```env
+GEMINI_API_KEY=your-ai-studio-api-key
+GEMINI_MODEL=gemini-3-flash-preview
+GOOGLE_PROJECT_ID=your-gcp-project-id
+MONGODB_URI=your-mongodb-atlas-connection-string
+
+# Optional: connect your own Fivetran data
+FIVETRAN_API_KEY=...
+FIVETRAN_API_SECRET=...
+SENTINEL_BQ_ACMESAAS_TABLE=google_sheets.acmesaas_metrics
+
+# Optional: turns on the Slack Decision Council and autonomous alerts
+SLACK_BOT_TOKEN=xoxb-...
+SLACK_CHANNEL_ID=C0...
+```
+
+### Run
+
 ```bash
-# 1. Connect a data source at fivetran.com → set BigQuery as destination
-# 2. Clone the Fivetran MCP server
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8101 --reload
+```
+
+Open [http://localhost:8101](http://localhost:8101) and click **Explore Demo**. Try AcmeSaaS or Netflix Qwikster.
+
+### Connect your own Fivetran data
+
+```bash
+# 1. At fivetran.com, connect your data sources to a BigQuery destination
+# 2. Clone the Fivetran MCP server alongside this project
 git clone https://github.com/fivetran/fivetran-mcp ../fivetran-mcp
 pip install -r ../fivetran-mcp/requirements.txt
 
-# 3. Set environment variables (see below)
-# 4. Register your BigQuery tables
+# 3. Tell SENTINEL which BigQuery table to read
 export SENTINEL_BQ_YOURAPP_TABLE=your_schema.your_metrics_table
 
-# 5. Run
-python -m uvicorn backend.main:app --reload --port 8100
+# 4. Run it
+python -m uvicorn backend.main:app --reload --port 8101
 ```
 
----
-
-## Environment Variables
-
-```env
-# Required
-GEMINI_API_KEY=...              # Google AI Studio API key (for Gemini 3)
-GOOGLE_PROJECT_ID=...           # GCP project (BigQuery + Vertex AI fallback)
-GOOGLE_LOCATION=us-central1
-
-# Gemini model (Gemini 3 enforced regardless)
-GEMINI_MODEL=gemini-3-flash-preview
-
-# Fivetran MCP
-FIVETRAN_API_KEY=...
-FIVETRAN_API_SECRET=...
-FIVETRAN_GROUP_ID=...
-FIVETRAN_MCP_PATH=../fivetran-mcp/server.py
-
-# MongoDB
-MONGODB_URI=...
-MONGODB_DATABASE=sentinel_db
-
-# Slack (optional — enables Decision Council and autonomous alerts)
-SLACK_BOT_TOKEN=xoxb-...
-SLACK_CHANNEL_ID=C0...
-
-# BigQuery connector registry (add as many as you need)
-SENTINEL_BQ_ACMESAAS_TABLE=google_sheets.acmesaas_metrics
-# SENTINEL_BQ_SHOPIFY_TABLE=shopify.orders_daily
-
-# App
-APP_PORT=8100
-OUTPUT_DIR=/tmp/sentinel        # Use /tmp on Cloud Run (read-only filesystem)
-```
-
----
-
-## API Reference
-
-```
-GET  /api/health                       Status, Gemini model active, monitor state
-GET  /api/monitor/status               Autonomous loop last run result
-POST /api/monitor/run                  Trigger monitoring cycle now
-GET  /api/decisions/snapshot           Current Fivetran metrics snapshot
-POST /api/decisions/log                Record decision + live snapshot
-GET  /api/decisions/list               All logged decisions
-GET  /api/warnings/active              Active early warnings
-POST /api/trace/analyze                Causal chain analysis
-GET  /api/demo/{scenario}/full         Full trace: BigQuery + causal + Bradford Hill + benchmarks
-POST /api/ask/                         Ask about decision history (ADK agent)
-POST /api/agent/chat                   Google ADK agent chat endpoint
-POST /api/transcript/extract           Extract decisions from meeting transcript
-GET  /api/connectors/list              Fivetran + BigQuery registry combined
-POST /api/connectors/{id}/sync         Trigger Fivetran sync via MCP
-POST /api/slack/events                 Slack Events API endpoint (URL verification + messages)
-```
-
----
-
-## Tests
-
-49 end-to-end tests covering the full stack with real API calls:
-
-```bash
-# Full suite (~6 min — makes real Gemini 3, BigQuery, and Slack API calls)
-python -m pytest tests/test_e2e.py -v
-
-# Fast (no live Cloud Run calls)
-python -m pytest tests/test_e2e.py -v -k "not live"
-
-# Individual suites
-python -m pytest tests/test_e2e.py -v -k "TestGemini3"         # 6 tests
-python -m pytest tests/test_e2e.py -v -k "TestBigQuery"        # 6 tests
-python -m pytest tests/test_e2e.py -v -k "TestCausalInference" # 6 tests
-python -m pytest tests/test_e2e.py -v -k "TestBradfordHill"    # 7 tests
-python -m pytest tests/test_e2e.py -v -k "TestIndustryBenchmarks" # 6 tests
-python -m pytest tests/test_e2e.py -v -k "TestSlackInterceptor"   # 6 tests
-python -m pytest tests/test_e2e.py -v -k "TestPrecheckEngine"     # 4 tests
-python -m pytest tests/test_e2e.py -v -k "TestFullTrace"          # 5 tests
-python -m pytest tests/test_e2e.py -v -k "TestSlackEventsRoute"   # 3 tests
-```
-
-All 49 tests pass. The `test_gemini3_model_active_is_gemini3` test skips gracefully when the free-tier 20 RPD quota is exhausted — this is not a code failure, just daily quota behavior.
+`/api/connectors/list` will then show your real connector next to the demo ones, and every snapshot pulled from it is live, not cached.
 
 ---
 
 ## Deploy to Cloud Run
 
 ```powershell
-# Windows
-cd sentinel
+# From the sentinel/ directory, on Windows
 .\deploy.ps1
 ```
 
 ```bash
-# Or manually
-cd sentinel
+# Or by hand, anywhere
 gcloud builds submit --tag gcr.io/YOUR_PROJECT/sentinel .
 gcloud run deploy sentinel \
   --image gcr.io/YOUR_PROJECT/sentinel \
@@ -371,16 +237,146 @@ gcloud run deploy sentinel \
   --env-vars-file env-cloud.yaml
 ```
 
-**env-cloud.yaml** (gitignored — contains real credentials):
-```yaml
-GEMINI_MODEL: "gemini-3-flash-preview"
-OUTPUT_DIR: "/tmp/sentinel"
-SENTINEL_BQ_ACMESAAS_TABLE: "google_sheets.acmesaas_metrics"
-# ... other credentials
+`env-cloud.yaml` holds your real credentials and stays out of git. At minimum it needs `GEMINI_API_KEY`, `GOOGLE_PROJECT_ID`, `MONGODB_URI`, and `GEMINI_MODEL`.
+
+---
+
+## Is it actually live, or running on demo data?
+
+SENTINEL never shows you mock data while pretending it's real. You can check for yourself:
+
 ```
+GET /api/health/integrations
+```
+
+```jsonc
+{
+  "posture": "demo | partially_live | fully_live",
+  "integrations": {
+    "gemini":   { "status": "live|configured|demo|error", "active_model": "..." },
+    "fivetran": { "status": "live|demo", "mode": "mcp|rest|demo" },
+    "bigquery": { "status": "live|configured|demo|error", "row_count": 182 },
+    "mongodb":  { "status": "live|demo|error" },
+    "adk":      { "status": "live|unavailable" },
+    "slack":    { "status": "configured|demo" }
+  }
+}
+```
+
+Every Fivetran result carries a `_source: mcp|rest|demo` tag and a `_live: true|false` flag. Every metrics snapshot names the BigQuery table it actually queried, or admits that it didn't query one. [ADR-0004](docs/adr/0004-honest-liveness-reporting.md) explains why this is built into the architecture rather than left as an afterthought.
+
+To go from demo to fully live: add `GEMINI_API_KEY` (Gemini goes live on the first call), add `FIVETRAN_API_KEY` and `FIVETRAN_API_SECRET` (Fivetran switches to REST; adding `FIVETRAN_MCP_PATH` switches it to full MCP), point `SENTINEL_BQ_ACMESAAS_TABLE` at a table that's actually being synced (BigQuery goes live), and set `MONGODB_URI` (Mongo goes live). Once Fivetran and BigQuery are both live, the whole system reports `fully_live`.
+
+---
+
+## API reference
+
+```
+GET  /api/health                    Service status, active model, monitor state
+GET  /api/health/integrations       Per-integration liveness: Gemini, Fivetran, BigQuery, Mongo, ADK, Slack
+GET  /api/monitor/status            Last autonomous run and warnings detected
+POST /api/monitor/run               Trigger a monitoring cycle right now
+GET  /api/decisions/snapshot        Live Fivetran metrics snapshot
+POST /api/decisions/log             Record a decision with a live snapshot attached
+POST /api/decisions/precheck        Pre-decision risk check (fires as you type)
+GET  /api/decisions/list            Every logged decision
+GET  /api/warnings/active           Active early warnings
+GET  /api/warnings/actions          Recent autonomous action plans
+GET  /api/demo/{scenario}/full      Full trace: BigQuery, causal tests, Bradford Hill, benchmarks
+POST /api/ask/                      Ask questions about decision history
+POST /api/agent/chat                Chat with the ADK agent; returns a visible multi-step tool trace
+POST /api/transcript/extract        Pull decisions out of a pasted transcript
+POST /api/slack/events              Slack Events API endpoint
+
+# Fivetran platform: the full MCP surface
+GET  /api/connectors/platform       One call for account + groups + connectors + destinations + webhooks
+GET  /api/connectors/list           Connectors merged with the BigQuery registry
+GET  /api/connectors/account        Account info
+GET  /api/connectors/groups         Groups, with drill-down into connections
+GET  /api/connectors/destinations   Destinations
+GET  /api/connectors/webhooks       Registered webhooks
+GET  /api/connectors/{id}/history   Sync history for one connector
+GET  /api/connectors/{id}/schema    Schema config for one connector
+POST /api/connectors/{id}/sync      Trigger a sync through MCP
+
+# Event-driven webhooks: Fivetran calls SENTINEL back
+POST /api/fivetran/webhook          Receive Fivetran sync events (HMAC-SHA256 verified)
+GET  /api/fivetran/webhook/recent   Recent inbound events
+
+# MCP: SENTINEL as a server other agents can use
+POST /api/mcp                       MCP Streamable HTTP transport (spec 2025-03-26)
+GET  /api/tool-calls/recent         Live tool-call feed (polling)
+GET  /api/tool-calls/stream         Live tool-call feed (SSE)
+```
+
+Interactive docs live at `/api/docs` in development mode.
+
+---
+
+## Tests
+
+49 end-to-end tests, all making real calls: Gemini 3, BigQuery, Slack.
+
+```bash
+# Full suite (around 6 minutes)
+python -m pytest tests/test_e2e.py -v
+
+# Skip the tests that need a live Cloud Run deployment
+python -m pytest tests/test_e2e.py -v -k "not live"
+```
+
+One test, `test_gemini3_model_active_is_gemini3`, skips gracefully once the free tier's daily quota of 20 requests is used up. That's quota, not a code failure.
+
+---
+
+## Project layout
+
+```
+sentinel/
+├── backend/
+│   ├── main.py                    # FastAPI app + autonomous scheduler startup
+│   ├── routes/                    # demo, decisions, trace, ask, agent_chat, connectors,
+│   │                              # fivetran_webhook, mcp_http, warnings, transcript...
+│   └── services/
+│       ├── gemini_client.py       # Gemini 3 + Vertex AI fallback (single source of truth)
+│       ├── causal_tracer.py       # Granger + ITS + Mann-Whitney pipeline
+│       ├── bradford_hill.py       # 9-criterion scoring
+│       ├── bigquery_pipeline.py   # BigQuery queries + time series
+│       ├── industry_benchmarks.py # Medallia / ChurnZero reference data
+│       ├── slack_interceptor.py   # 4-agent Decision Council
+│       ├── mcp_client.py          # Fivetran MCP stdio client
+│       ├── precheck_engine.py     # Pre-decision risk scoring
+│       ├── warning_engine.py      # Pattern detection
+│       ├── diagnostics.py         # Honest per-integration liveness
+│       └── monitor.py             # 30-minute autonomous loop
+├── agent/
+│   └── sentinel_agent.py          # Google ADK agent: visible multi-step tool trace
+├── frontend/
+│   ├── index.html                 # Single-page app
+│   ├── app.js                     # All UI logic
+│   └── style.css                  # Design system, light/dark themes, responsive layouts
+├── docs/
+│   ├── architecture.md            # Full system walkthrough + diagram
+│   └── adr/                       # Why we built it this way
+├── tests/
+│   └── test_e2e.py                # 49 end-to-end tests
+├── requirements.txt
+├── Dockerfile
+└── deploy.ps1
+```
+
+---
+
+## A few honest caveats
+
+The two demo scenarios (AcmeSaaS and Netflix Qwikster) are illustrative: built on realistic but constructed data so you can see the whole pipeline before connecting your own warehouse. Connect a real Fivetran source and the same pipeline runs on your real numbers.
+
+Gemini's free tier caps at 20 requests a day, and SENTINEL makes several model calls per analysis (the council alone is four), so a paid AI Studio key is worth it for anything beyond a quick look.
+
+Bradford Hill scoring is a strength-of-evidence framework, not a courtroom verdict. A "Strong" score means the available evidence consistently points the same way across independent tests. It's a reason to take a hypothesis seriously, not a guarantee that the decision is what caused the outcome, which is exactly why SENTINEL also surfaces alternative explanations alongside every score.
 
 ---
 
 ## License
 
-Apache 2.0 — see [LICENSE](LICENSE)
+Apache 2.0. See [LICENSE](LICENSE).

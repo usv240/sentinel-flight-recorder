@@ -53,6 +53,44 @@ def _get_model_id() -> str:
     return env if env else _MODEL_CANDIDATES[0]
 
 
+# ── Public model accessors — single source of truth for the whole app ─────────
+# Both the direct Gemini path (this module) and the ADK agent
+# (agent/sentinel_agent.py) resolve their model through these helpers, so the
+# app never reports a model it isn't actually using.
+
+def get_gemini3_models() -> list:
+    """Gemini 3 model tier (API-key only)."""
+    return list(_GEMINI3_MODELS)
+
+
+def get_vertex_fallback_models() -> list:
+    """Vertex AI fallback tier (used only when Gemini 3 quota is exhausted)."""
+    return list(_VERTEX_FALLBACK)
+
+
+def is_gemini3_model(model: str) -> bool:
+    return model in _GEMINI3_MODELS
+
+
+def get_configured_model() -> str:
+    """The model SENTINEL is *configured* to prefer (env or Gemini 3 default)."""
+    return _get_model_id()
+
+
+def get_active_model() -> str:
+    """
+    The model SENTINEL most recently *actually used* for a successful call.
+    Set by generate() on every success. Falls back to the configured model
+    before the first call completes.
+    """
+    return os.getenv("GEMINI_MODEL_ACTIVE") or get_configured_model()
+
+
+def gemini3_quota_exhausted() -> bool:
+    """True once every Gemini 3 candidate has failed with a quota/availability error."""
+    return _gemini3_quota_exhausted
+
+
 def _get_client():
     """
     Return a configured google-genai client.
@@ -116,7 +154,7 @@ async def generate(prompt: str, as_json: bool = False) -> str:
         return "{}" if as_json else ""
 
     env_model = os.getenv("GEMINI_MODEL", "").strip()
-    # Always try Gemini 3 first (hackathon strict requirement).
+    # Always try Gemini 3 first — it's the newest and most capable model we have access to.
     # If GEMINI_MODEL is a Gemini 3 model, honour that preference within G3 tier.
     # If GEMINI_MODEL is a Vertex fallback, still put all G3 models first.
     if env_model and env_model in _GEMINI3_MODELS:

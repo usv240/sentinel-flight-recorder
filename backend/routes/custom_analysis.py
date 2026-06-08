@@ -1,7 +1,7 @@
 """
-Custom Analysis endpoint — judges enter their own data, SENTINEL runs the full pipeline.
+Custom Analysis endpoint — bring your own decision and metrics, SENTINEL runs the full pipeline on them.
 
-This proves SENTINEL is NOT running on curated rails.
+This is proof SENTINEL isn't running on curated rails.
 Any decision + metrics → same causal inference battery + Gemini narrative.
 
 POST /api/custom/analyze
@@ -62,47 +62,60 @@ async def custom_analyze(inp: CustomDecisionInput):
     weekly_series = []
     metric_name = inp.metric_name or "custom_metric"
     data_quality_notes = []
+    decision_index = 1  # default: first point is pre-decision, rest are post-decision
 
     if inp.metric_weekly_series:
         try:
-            weekly_series = [float(v.strip()) for v in inp.metric_weekly_series.split(",") if v.strip()]
-            data_quality_notes.append(f"Using provided weekly series: {len(weekly_series)} data points")
+            post_series = [float(v.strip()) for v in inp.metric_weekly_series.split(",") if v.strip()]
+            # Prepend the pre-decision value so ITS and Mann-Whitney have a baseline
+            pre_value = inp.churn_at_decision if inp.churn_at_decision is not None else \
+                        (inp.nps_at_decision if inp.nps_at_decision is not None else inp.mrr_at_decision)
+            if pre_value is not None:
+                weekly_series = [pre_value] + post_series
+                metric_name = ("churn_rate" if inp.churn_at_decision is not None else
+                               "nps" if inp.nps_at_decision is not None else "mrr")
+                decision_index = 1
+                data_quality_notes.append(f"Weekly series with pre-decision baseline: {len(weekly_series)} data points")
+            else:
+                weekly_series = post_series
+                decision_index = 0
+                data_quality_notes.append(f"Weekly series (no pre-decision value): {len(weekly_series)} data points")
         except ValueError:
-            data_quality_notes.append("Could not parse weekly series — falling back to before/after comparison")
+            data_quality_notes.append("Could not parse weekly series, falling back to before/after comparison")
 
     # If no weekly series, synthesize from before/after snapshots
     if len(weekly_series) < 3:
-        before_after_pairs = []
         if inp.churn_at_decision is not None and inp.churn_now is not None:
-            # Interpolate 5 weekly points
             c0, c1 = inp.churn_at_decision, inp.churn_now
-            weekly_series = [c0 + (c1 - c0) * i / 4 for i in range(5)]
+            weekly_series = [c0] + [c0 + (c1 - c0) * i / 3 for i in range(1, 5)]
             metric_name = "churn_rate"
+            decision_index = 1
             data_quality_notes.append("Interpolated 5 weekly points from before/after churn values")
         elif inp.nps_at_decision is not None and inp.nps_now is not None:
             n0, n1 = inp.nps_at_decision, inp.nps_now
-            weekly_series = [n0 + (n1 - n0) * i / 4 for i in range(5)]
+            weekly_series = [n0] + [n0 + (n1 - n0) * i / 3 for i in range(1, 5)]
             metric_name = "nps"
+            decision_index = 1
             data_quality_notes.append("Interpolated 5 weekly points from before/after NPS values")
         elif inp.mrr_at_decision is not None and inp.mrr_now is not None:
             m0, m1 = inp.mrr_at_decision, inp.mrr_now
-            weekly_series = [m0 + (m1 - m0) * i / 4 for i in range(5)]
+            weekly_series = [m0] + [m0 + (m1 - m0) * i / 3 for i in range(1, 5)]
             metric_name = "mrr"
+            decision_index = 1
             data_quality_notes.append("Interpolated 5 weekly points from before/after MRR values")
         else:
-            data_quality_notes.append("Insufficient metric data — provide at least before/after values for one metric")
+            data_quality_notes.append("Insufficient metric data, provide at least before/after values for one metric")
 
     # ── Run causal battery ─────────────────────────────────────────────────
     if len(weekly_series) >= 3:
         indicator = list(range(len(weekly_series)))
-        decision_index = 0
         analysis = _run_causal_battery(weekly_series, indicator, decision_index, metric_name)
     else:
         analysis = {
             "metric": metric_name,
             "pearson_r": 0.0,
             "pearson_p": 1.0,
-            "granger": {"significant": False, "note": "Insufficient data — need at least 3 time points"},
+            "granger": {"significant": False, "note": "Insufficient data, need at least 3 time points"},
             "interrupted_time_series": {"significant": False, "note": "Insufficient data"},
             "mann_whitney": {"significant": False, "note": "Insufficient data"},
             "significant_tests": 0,

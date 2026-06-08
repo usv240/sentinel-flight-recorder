@@ -17,12 +17,23 @@ from typing import Optional
 
 log = logging.getLogger("sentinel.bigquery")
 
-_PROJECT = os.getenv("GOOGLE_PROJECT_ID", "")
+
+def _project() -> str:
+    """
+    Read the GCP project at call time (not import time).
+    Reading at import time was a footgun: if this module was imported before
+    load_dotenv() ran, the project was "" and every query hit projects// → 404.
+    """
+    return os.getenv("GOOGLE_PROJECT_ID", "")
+
+
+# Back-compat alias for any code/tests referencing the old module-level constant.
+_PROJECT = _project()
 
 
 def _bq_client():
     from google.cloud import bigquery
-    return bigquery.Client(project=_PROJECT)
+    return bigquery.Client(project=_project())
 
 
 # ── Table registry — maps scenario names to real BigQuery tables ──────────────
@@ -63,7 +74,7 @@ async def get_real_time_series(scenario: str) -> Optional[dict]:
                 cac,
                 arr,
                 runway_months
-            FROM `{_PROJECT}.{table}`
+            FROM `{_project()}.{table}`
             ORDER BY date ASC
         """
         rows = list(client.query(query).result())

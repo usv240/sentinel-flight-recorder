@@ -1,28 +1,45 @@
-# Secrets — never commit
+# Secrets: never commit
 .env
+.env.*
+!.env.example
 env-cloud.yaml
 fivetran-mcp/.env.sentinel
 fivetran-mcp/*.json.bak
+*.pem
+*.key
+service_account*.json
+service-account*.json
 
-# Runtime outputs & logs
+# Runtime outputs and logs
 outputs/
-server.log
-server_stdout.log
-server_stderr.log
+*.log
 
 # Private session notes
 PROGRESS.md
 NEXT_PHASE.md
 
-# Internal planning docs — not for public repo
+# Internal planning docs
 IMPROVEMENTS.md
 plan/
+
+# Competition reference material: personal notes, not part of the project
+Fivetran Rules
+Main Rules
+DEVPOST_SUBMISSION.md
 
 # Agent setup doc has project-specific IDs
 agent/AGENT_BUILDER_SETUP.md
 
+# Editor and OS clutter
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+
 # Python
 venv/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -32,4 +49,3 @@ __pycache__/
 dist/
 build/
 .DS_Store
-

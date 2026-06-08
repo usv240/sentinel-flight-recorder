@@ -34,20 +34,49 @@ def _bq_query(sql: str) -> Optional[list]:
         return None
 
 
+def _primary_table() -> str:
+    """
+    The primary Fivetran-synced BigQuery table SENTINEL reads live metrics from.
+    Resolved from the connector registry (SENTINEL_BQ_*_TABLE env vars) so it's
+    never hardcoded; falls back to the built-in Google Sheets demo table.
+    """
+    try:
+        from .bigquery_pipeline import get_connector_registry
+        registry = get_connector_registry()
+        # Prefer an explicitly-registered acmesaas/google_sheets table, else first.
+        for key in ("acmesaas", "google_sheets"):
+            if key in registry:
+                return registry[key]
+        if registry:
+            return next(iter(registry.values()))
+    except Exception:
+        pass
+    return os.getenv("SENTINEL_BQ_ACMESAAS_TABLE", "google_sheets.acmesaas_metrics")
+
+
 async def build_metrics_snapshot(demo_scenario: Optional[str] = None) -> Dict[str, Any]:
     """
-    Pull current metrics from all connected Fivetran sources via BigQuery.
-    Falls back to demo data when BigQuery is not configured.
+    Pull current metrics from Fivetran-synced sources via BigQuery.
+
+    Every snapshot is tagged with its provenance so nothing downstream can
+    present demo numbers as live:
+      _data_source: "bigquery_live" | "demo"
+      _live:        True only when the numbers came from a real BigQuery query
+      _table:       the fully-qualified table queried (when live)
     """
     if demo_scenario:
-        return _demo_snapshot(demo_scenario)
+        snap = dict(_demo_snapshot(demo_scenario))
+        snap.setdefault("_data_source", "demo")
+        snap.setdefault("_live", False)
+        return snap
 
     snapshot: Dict[str, Any] = {"captured_at": datetime.utcnow().isoformat(), "sources": {}}
-    dataset = os.getenv("BIGQUERY_DATASET_PREFIX", "sentinel_")
     project = os.getenv("GOOGLE_PROJECT_ID", "")
+    table = _primary_table()
+    # Fully-qualify: `project.dataset.table`. Registry entries are `dataset.table`.
+    fq = table if table.count(".") >= 2 else (f"{project}.{table}" if project else table)
 
-    # Primary: query Fivetran-synced Google Sheets data (acmesaas_metrics)
-    # Table: google_sheets.acmesaas_metrics (created by Fivetran sync)
+    # Primary: query the Fivetran-synced table (created by a Fivetran → BigQuery sync)
     sheets_sql = f"""
     SELECT
       date,
@@ -60,14 +89,17 @@ async def build_metrics_snapshot(demo_scenario: Optional[str] = None) -> Dict[st
       ltv,
       support_tickets_7d,
       runway_months
-    FROM `{project}.google_sheets.acmesaas_metrics`
+    FROM `{fq}`
     ORDER BY date DESC
     LIMIT 1
     """
-    sheets_result = _bq_query(sheets_sql)
+    sheets_result = _bq_query(sheets_sql) if project else None
     if sheets_result:
         r = sheets_result[0]
-        snapshot["sources"]["google_sheets"] = {"status": "connected", "table": "acmesaas_metrics"}
+        snapshot["_data_source"] = "bigquery_live"
+        snapshot["_live"] = True
+        snapshot["_table"] = fq
+        snapshot["sources"]["fivetran_bigquery"] = {"status": "connected", "table": table}
         snapshot["mrr"] = r.get("mrr")
         snapshot["arr"] = r.get("arr")
         snapshot["churn_rate"] = r.get("churn_rate")
@@ -90,16 +122,21 @@ async def build_metrics_snapshot(demo_scenario: Optional[str] = None) -> Dict[st
             flags.append(f"Runway {snapshot['runway_months']:.1f} months — below 6-month safety threshold")
         if flags:
             snapshot["_flags"] = flags
-    else:
-        snapshot["sources"]["google_sheets"] = {"status": "not_connected"}
+        snapshot["captured_at"] = datetime.utcnow().isoformat()
+        return snapshot
 
-    snapshot["captured_at"] = datetime.utcnow().isoformat()
-
-    # If BigQuery had no results, use partial demo data
-    if not any(v for v in snapshot["sources"].values() if isinstance(v, dict) and "status" not in v):
-        snapshot.update(_demo_snapshot("acmesaas_live"))
-
-    return snapshot
+    # No live BigQuery result → labelled demo fallback (never presented as live)
+    demo = dict(_demo_snapshot("acmesaas_live"))
+    demo["_data_source"] = "demo"
+    demo["_live"] = False
+    demo["sources"] = {"fivetran_bigquery": {
+        "status": "not_connected",
+        "table": table,
+        "reason": ("no GOOGLE_PROJECT_ID configured" if not project
+                   else f"no rows from {fq} — run a Fivetran sync to populate it"),
+    }}
+    demo["captured_at"] = datetime.utcnow().isoformat()
+    return demo
 
 
 def _demo_snapshot(scenario: str) -> Dict[str, Any]:

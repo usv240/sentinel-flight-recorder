@@ -3,7 +3,8 @@ SENTINEL Slack Interceptor — Multi-Agent Decision Council
 
 When someone types a business decision in Slack, SENTINEL convenes a council
 of 4 specialized Gemini agents that analyze in parallel and post results as
-they arrive — giving judges a live view of multi-agent reasoning.
+they arrive — so you get a live view of multi-agent reasoning, not a single
+black-box answer.
 
 Agent roles:
   1. Data Agent      — queries Fivetran BigQuery, reports live metrics + trends

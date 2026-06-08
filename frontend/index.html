@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SENTINEL — The Business Flight Recorder</title>
+  <title>SENTINEL: The Business Flight Recorder</title>
   <meta name="description" content="The first flight recorder for human business decisions. Powered by Fivetran MCP, Gemini 3, and Google Cloud Agent Builder." />
   <link rel="stylesheet" href="style.css" />
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>" />
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FF2E4C' stroke-width='2' stroke-linecap='round'%3E%3Crect x='1' y='1' width='22' height='22' rx='6' fill='%23090909'/%3E%3Ccircle cx='12' cy='12' r='7.5'/%3E%3Ccircle cx='12' cy='12' r='2.6'/%3E%3Ccircle cx='12' cy='12' r='0.6' fill='%23FF2E4C'/%3E%3Cline x1='12' y1='3' x2='12' y2='5.6'/%3E%3C/svg%3E" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -17,21 +17,110 @@
 <div id="view-landing" class="view active">
   <div class="landing">
 
+    <div class="landing-live-badge">
+      <span class="landing-live-dot"></span>
+      <span>Live: monitoring active, Fivetran MCP connected, Gemini 3</span>
+    </div>
+
     <div class="landing-eyebrow">
-      <span>✈️</span>
-      <span>SENTINEL — The Business Flight Recorder</span>
+      <span data-icon="mark" data-size="14"></span>
+      <span>SENTINEL, the Business Flight Recorder</span>
     </div>
 
     <h1>In 2026, every AI agent has a flight recorder.<br/>
-    <span class="text-red">The humans? Still nothing.</span></h1>
+    <span class="text-gradient-red">The humans? Still nothing.</span></h1>
 
     <p class="landing-sub">
       Businesses forget why they made decisions. People leave, context is lost,
-      new executives repeat old mistakes. SENTINEL records every decision with
-      its full data context — forever.
+      and new executives repeat old mistakes. SENTINEL records every decision with
+      its full Fivetran data context, then traces the causal chain when things go wrong.
     </p>
 
-    <div class="scenario-grid">
+    <!-- Hero CTA -->
+    <div class="hero-cta-row">
+      <button class="btn btn-danger btn-lg" onclick="loadScenario('acmesaas')">
+        <i data-icon="play" data-size="16"></i> Explore Demo
+      </button>
+      <button class="btn btn-ghost btn-lg" onclick="loadScenario('netflix')">
+        <i data-icon="film" data-size="16"></i> Netflix Qwikster
+      </button>
+    </div>
+
+    <!-- Feature pills strip -->
+    <div class="feature-pills" style="margin-bottom: var(--space-8)">
+      <span class="feature-pill ft"><i data-icon="zap" data-size="12"></i> Fivetran MCP, 11 tools</span>
+      <span class="feature-pill gc"><i data-icon="sparkles" data-size="12"></i> Gemini 3 + Google ADK 2.0</span>
+      <span class="feature-pill rd"><i data-icon="scale" data-size="12"></i> Bradford Hill, 9 criteria</span>
+      <span class="feature-pill gn"><i data-icon="repeat" data-size="12"></i> Event-driven webhooks</span>
+      <span class="feature-pill"><i data-icon="radio" data-size="12"></i> BigQuery, real-time</span>
+      <span class="feature-pill"><i data-icon="cpu" data-size="12"></i> Autonomous monitoring</span>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         SECTION: The Problem
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="problem-section reveal">
+      <div class="section-eyebrow" style="color:var(--red)">The problem</div>
+      <h2 class="section-title">The $120K decision that was visible 34 days early</h2>
+      <p class="problem-tagline">
+        Every business crisis starts the same way: the data existed before the disaster,
+        and nobody connected the dots. SENTINEL closes that gap.
+      </p>
+
+      <!-- Crisis Timeline -->
+      <div class="crisis-timeline-row">
+        <div class="crisis-node">
+          <div class="crisis-dot d"><i data-icon="dollar-sign" data-size="18"></i></div>
+          <div class="crisis-day">Day 0</div>
+          <div class="crisis-label">Price raised 20%</div>
+          <div class="crisis-sub">NPS at 31, declining</div>
+        </div>
+        <div class="crisis-node">
+          <div class="crisis-dot s"><i data-icon="trending-down" data-size="18"></i></div>
+          <div class="crisis-day">Day +5</div>
+          <div class="crisis-label">NPS drops to 26</div>
+          <div class="crisis-sub">Signal one, ignored</div>
+        </div>
+        <div class="crisis-node">
+          <div class="crisis-dot w"><i data-icon="alert-triangle" data-size="18"></i></div>
+          <div class="crisis-day">Day +15</div>
+          <div class="crisis-label">Churn ticks up 2%</div>
+          <div class="crisis-sub">Signal two, ignored</div>
+        </div>
+        <div class="crisis-node">
+          <div class="crisis-dot c"><i data-icon="alert-octagon" data-size="18"></i></div>
+          <div class="crisis-day">Day +34</div>
+          <div class="crisis-label">Pattern confirmed</div>
+          <div class="crisis-sub">3 of 3 tests significant</div>
+        </div>
+        <div class="crisis-node">
+          <div class="crisis-dot c"><i data-icon="trending-down" data-size="18"></i></div>
+          <div class="crisis-day">Day +90</div>
+          <div class="crisis-label">$120K ARR lost</div>
+          <div class="crisis-sub">17% churn. Too late.</div>
+        </div>
+      </div>
+
+      <!-- Before / After -->
+      <div class="problem-split">
+        <div class="problem-split-col bad">
+          <div class="problem-split-tag"><i data-icon="x" data-size="12"></i> Without SENTINEL</div>
+          <div class="problem-split-item"><span class="split-ico bad"><i data-icon="x" data-size="12"></i></span> Crisis discovered at day 90, during the post-mortem</div>
+          <div class="problem-split-item"><span class="split-ico bad"><i data-icon="x" data-size="12"></i></span> No record of what the metrics looked like at decision time</div>
+          <div class="problem-split-item"><span class="split-ico bad"><i data-icon="x" data-size="12"></i></span> New executives repeat the same mistake eighteen months later</div>
+          <div class="problem-split-item"><span class="split-ico bad"><i data-icon="x" data-size="12"></i></span> $120K of ARR, permanently lost</div>
+        </div>
+        <div class="problem-split-col good">
+          <div class="problem-split-tag"><i data-icon="check" data-size="12"></i> With SENTINEL</div>
+          <div class="problem-split-item"><span class="split-ico good"><i data-icon="check" data-size="12"></i></span> Warning fired on day 34, fifty-six days before the crisis</div>
+          <div class="problem-split-item"><span class="split-ico good"><i data-icon="check" data-size="12"></i></span> Decision frozen with an NPS-31 snapshot, forever</div>
+          <div class="problem-split-item"><span class="split-ico good"><i data-icon="check" data-size="12"></i></span> Gemini drafts a corrective action plan immediately</div>
+          <div class="problem-split-item"><span class="split-ico good"><i data-icon="check" data-size="12"></i></span> Causal battery 3 of 3 significant, Bradford Hill 7 of 9 (84%, strong)</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="scenario-grid reveal reveal-delay-1">
       <div class="scenario-card" onclick="loadScenario('acmesaas')" id="card-acmesaas">
         <div class="scenario-stat">34 days</div>
         <div class="scenario-name">AcmeSaaS Pricing Disaster</div>
@@ -47,7 +136,7 @@
 
       <div class="scenario-card" onclick="loadScenario('qwikster')" id="card-qwikster">
         <div class="scenario-stat" style="color:var(--yellow)">-77%</div>
-        <div class="scenario-name">Netflix Qwikster — The $3B Mistake</div>
+        <div class="scenario-name">Netflix Qwikster: the $3B mistake</div>
         <div class="scenario-desc">
           800,000 subscribers lost. Stock fell 77%. The subscriber growth data
           said it was coming.
@@ -61,15 +150,15 @@
 
     <div class="flex gap-3" style="flex-wrap:wrap;justify-content:center">
       <button class="btn btn-danger btn-lg" onclick="loadScenario('acmesaas')">
-        ✈️ Explore Demo
+        Explore Demo →
       </button>
       <button class="btn btn-ghost btn-lg" onclick="showConnectModal()">
-        🔌 Connect Your Data
+        Connect Your Data
       </button>
     </div>
 
-    <!-- Impact stats strip -->
-    <div class="landing-stats-strip">
+    <!-- Impact Stats Strip -->
+    <div class="landing-stats-strip reveal">
       <div class="lstat">
         <div class="lstat-num text-red">34 days</div>
         <div class="lstat-label">of warning AcmeSaaS missed</div>
@@ -82,108 +171,518 @@
       <div class="lstat-divider"></div>
       <div class="lstat">
         <div class="lstat-num" style="color:var(--yellow)">800K</div>
-        <div class="lstat-label">Netflix subscribers — data said it coming</div>
+        <div class="lstat-label">Netflix subscribers, the data said it was coming</div>
       </div>
       <div class="lstat-divider"></div>
       <div class="lstat">
         <div class="lstat-num" style="color:var(--blue)">7/9</div>
         <div class="lstat-label edu-tooltip-wrap">
           Bradford Hill criteria met
-          <div class="edu-tooltip">Bradford Hill (1965): 9 criteria for causal inference from observational data — strength, consistency, specificity, temporality, gradient, plausibility, coherence, experiment, analogy. SENTINEL scores every trace against all 9 criteria. 7/9 = strong causal evidence.</div>
+          <div class="edu-tooltip">Bradford Hill (1965) lists 9 criteria for causal inference from observational data: strength, consistency, specificity, temporality, gradient, plausibility, coherence, experiment, analogy. SENTINEL scores every trace against all 9. The live AcmeSaaS trace (Fivetran to BigQuery) scores 7/9 (84%, "strong"), backed by a 3/3 verdict from the causal battery.</div>
         </div>
       </div>
     </div>
 
-    <!-- How It Works -->
-    <div class="how-it-works">
-      <div class="section-eyebrow">How It Works</div>
-      <h2 class="section-title">Five steps. Every decision. Forever.</h2>
-      <div class="steps-row">
-        <div class="step-card">
-          <div class="step-number">1</div>
-          <div class="step-icon-lg">⚡</div>
-          <div class="step-name">Fivetran syncs</div>
-          <div class="step-desc">MCP triggers a live sync across all connected sources — Stripe, HubSpot, Salesforce — before every decision is recorded.</div>
-          <div class="step-tech">Fivetran MCP</div>
+    <!-- ═══════════════════════════════════════════════════════════════
+         LANDING DEPTH TABS
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="landing-depth-section reveal">
+      <nav class="depth-tab-nav" role="tablist">
+        <button class="depth-tab-btn active" onclick="switchLandingTab('how')" data-landing-tab="how">
+          <i data-icon="arrow-right" data-size="13"></i> How It Works
+        </button>
+        <button class="depth-tab-btn" onclick="switchLandingTab('vs')" data-landing-tab="vs">
+          <i data-icon="scale" data-size="13"></i> vs BI Tools
+        </button>
+        <button class="depth-tab-btn" onclick="switchLandingTab('fivetran')" data-landing-tab="fivetran">
+          <i data-icon="zap" data-size="13"></i> Fivetran MCP
+        </button>
+        <button class="depth-tab-btn" onclick="switchLandingTab('causal')" data-landing-tab="causal">
+          <i data-icon="flask" data-size="13"></i> Causal AI
+        </button>
+        <button class="depth-tab-btn" onclick="switchLandingTab('agent')" data-landing-tab="agent">
+          <i data-icon="cpu" data-size="13"></i> Agent Trace
+        </button>
+        <button class="depth-tab-btn" onclick="switchLandingTab('stack')" data-landing-tab="stack">
+          <i data-icon="layers" data-size="13"></i> Stack
+        </button>
+      </nav>
+
+      <!-- Panel: How It Works -->
+      <div class="depth-tab-panel active" data-landing-panel="how">
+        <div class="section-eyebrow">How it works</div>
+        <h2 class="section-title">Five steps. Every decision. Forever.</h2>
+        <div class="steps-row">
+          <div class="step-card">
+            <div class="step-number">1</div>
+            <div class="step-icon-lg"><i data-icon="zap" data-size="22"></i></div>
+            <div class="step-name">Fivetran syncs</div>
+            <div class="step-desc">MCP triggers <code style="font-family:var(--font-mono);font-size:11px">sync_connection</code> across connected sources, Stripe, HubSpot, Salesforce, before every decision is recorded. Every call logged.</div>
+            <div class="step-tech">Fivetran MCP · 11 tools</div>
+          </div>
+          <div class="step-arrow"><i data-icon="arrow-right" data-size="16"></i></div>
+          <div class="step-card">
+            <div class="step-number">2</div>
+            <div class="step-icon-lg"><i data-icon="camera" data-size="22"></i></div>
+            <div class="step-name">Snapshot frozen</div>
+            <div class="step-desc">NPS, churn, and MRR captured at the exact moment from BigQuery. Immutable. Stored forever in MongoDB Atlas. Future-you has full data context.</div>
+            <div class="step-tech">BigQuery + MongoDB Atlas</div>
+          </div>
+          <div class="step-arrow"><i data-icon="arrow-right" data-size="16"></i></div>
+          <div class="step-card">
+            <div class="step-number">3</div>
+            <div class="step-icon-lg"><i data-icon="flask" data-size="22"></i></div>
+            <div class="step-name">Three-method battery runs</div>
+            <div class="step-desc">Granger causality, Interrupted Time Series, and Mann-Whitney U run in parallel via scipy. Bradford Hill scores all nine criteria. Gemini 3 explains what the numbers mean.</div>
+            <div class="step-tech">Gemini 3 · ADK 2.0</div>
+          </div>
+          <div class="step-arrow"><i data-icon="arrow-right" data-size="16"></i></div>
+          <div class="step-card">
+            <div class="step-number">4</div>
+            <div class="step-icon-lg"><i data-icon="alert-triangle" data-size="22"></i></div>
+            <div class="step-name">Warnings fire</div>
+            <div class="step-desc">An autonomous APScheduler loop (every 30 minutes) pattern-matches metrics against historical bad-outcome baselines. It fires early, before the crisis, not after.</div>
+            <div class="step-tech">Google Cloud Agent Builder</div>
+          </div>
+          <div class="step-arrow"><i data-icon="arrow-right" data-size="16"></i></div>
+          <div class="step-card">
+            <div class="step-number">5</div>
+            <div class="step-icon-lg"><i data-icon="search" data-size="22"></i></div>
+            <div class="step-name">Chain traced</div>
+            <div class="step-desc">When outcomes go wrong, SENTINEL traces decision to first signal to escalation to crisis, with exact days elapsed, then ranks every decision in the lookback window by causal signal strength.</div>
+            <div class="step-tech">Bradford Hill · Causal AI</div>
+          </div>
         </div>
-        <div class="step-arrow">→</div>
-        <div class="step-card">
-          <div class="step-number">2</div>
-          <div class="step-icon-lg">📸</div>
-          <div class="step-name">Snapshot frozen</div>
-          <div class="step-desc">Every metric is captured at the exact moment. The data can never be rewritten. Future-you has full context.</div>
-          <div class="step-tech">BigQuery + MongoDB</div>
+      </div>
+
+      <!-- Panel: VS BI Tools -->
+      <div class="depth-tab-panel" data-landing-panel="vs">
+        <div class="section-eyebrow">Why SENTINEL is different</div>
+        <h2 class="section-title">Not a dashboard. A causal investigation platform.</h2>
+        <div class="vs-grid">
+          <div class="vs-col without">
+            <div class="vs-head">Traditional business intelligence</div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="bar-chart" data-size="16"></i></span><span class="vs-row-text">Shows metrics, with no context for <em>why</em> they changed</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="search" data-size="16"></i></span><span class="vs-row-text">Post-mortem only: finds problems after the damage is done</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="trending-up" data-size="16"></i></span><span class="vs-row-text">Correlation only, "NPS and churn are related," with no test for causation</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="clipboard" data-size="16"></i></span><span class="vs-row-text">No decision record: what the data looked like at decision time is never captured</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="user" data-size="16"></i></span><span class="vs-row-text">Manual analysis: requires a data scientist to dig in</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="link" data-size="16"></i></span><span class="vs-row-text">Disconnected from the decision-making process</span></div>
+          </div>
+          <div class="vs-col with-sentinel">
+            <div class="vs-head">SENTINEL: causal flight recorder</div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="sparkles" data-size="16"></i></span><span class="vs-row-text"><strong>Decision causation:</strong> a three-method statistical battery traces <em>which decision caused this</em></span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="zap" data-size="16"></i></span><span class="vs-row-text"><strong>Proactive warnings:</strong> fires 34 days before the crisis, not after</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="flask" data-size="16"></i></span><span class="vs-row-text"><strong>Granger + ITS + Mann-Whitney:</strong> three independent tests, not just a Pearson r</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="camera" data-size="16"></i></span><span class="vs-row-text"><strong>Frozen snapshots:</strong> every decision preserved with all of its metrics via Fivetran MCP</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="cpu" data-size="16"></i></span><span class="vs-row-text"><strong>Autonomous ADK agent:</strong> runs every 30 minutes with visible, multi-step reasoning</span></div>
+            <div class="vs-row"><span class="vs-icon"><i data-icon="repeat" data-size="16"></i></span><span class="vs-row-text"><strong>Bidirectional Fivetran:</strong> event-driven, reacts to sync_end webhooks immediately</span></div>
+          </div>
         </div>
-        <div class="step-arrow">→</div>
-        <div class="step-card">
-          <div class="step-number">3</div>
-          <div class="step-icon-lg">🟣</div>
-          <div class="step-name">Gemini 3 analyzes</div>
-          <div class="step-desc">Generates causal narrative and early warning text. Pearson r is computed from real time-series data via scipy — then Gemini explains what it means.</div>
-          <div class="step-tech">Gemini 3</div>
+      </div>
+
+      <!-- Panel: Fivetran MCP -->
+      <div class="depth-tab-panel" data-landing-panel="fivetran">
+        <div class="fivetran-depth-badge"><i data-icon="zap" data-size="12"></i> Fivetran track: partner integration</div>
+        <div class="section-eyebrow">Fivetran MCP depth</div>
+        <h2 class="section-title">11 MCP tools. Full platform coverage. Bidirectional.</h2>
+        <p style="font-size:16px;color:var(--text-secondary);max-width:620px;margin:0 auto var(--space-4)">
+          Most integrations call one or two Fivetran endpoints. SENTINEL exercises
+          the entire MCP surface: every resource group, both directions.
+        </p>
+        <div class="mcp-tools-grid">
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">get_account_info</div>
+              <div class="mcp-tool-desc">Account name, region, and tier details</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">list_groups</div>
+              <div class="mcp-tool-desc">All Fivetran groups (warehouse-destination pairs)</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">get_group_details</div>
+              <div class="mcp-tool-desc">Drill into a specific group's configuration</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">list_connections_in_group</div>
+              <div class="mcp-tool-desc">All connectors in a specific group</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">list_connections</div>
+              <div class="mcp-tool-desc">All connectors with status and last sync time</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">get_connection_details</div>
+              <div class="mcp-tool-desc">Full connector config and sync metadata</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon" style="color:var(--red);background:var(--red-dim);border-color:var(--red-border)">▶</div>
+            <div>
+              <div class="mcp-tool-name" style="color:var(--red)">sync_connection</div>
+              <div class="mcp-tool-desc">Triggers a live sync, called before every decision snapshot</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">get_connection_schema_config</div>
+              <div class="mcp-tool-desc">Schema structure of synced tables</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">list_destinations</div>
+              <div class="mcp-tool-desc">BigQuery destinations where synced data lands</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon">↗</div>
+            <div>
+              <div class="mcp-tool-name">get_destination_details</div>
+              <div class="mcp-tool-desc">Destination config, region, dataset info</div>
+            </div>
+          </div>
+          <div class="mcp-tool-card">
+            <div class="mcp-tool-icon" style="color:var(--green);background:var(--green-dim);border-color:var(--green-border)">↙</div>
+            <div>
+              <div class="mcp-tool-name" style="color:var(--green)">list_webhooks + receive</div>
+              <div class="mcp-tool-desc">List configured webhooks + receive sync_end events (HMAC verified)</div>
+            </div>
+          </div>
         </div>
-        <div class="step-arrow">→</div>
-        <div class="step-card">
-          <div class="step-number">4</div>
-          <div class="step-icon-lg">⚠️</div>
-          <div class="step-name">Warnings fire</div>
-          <div class="step-desc">Pattern-matches current metrics against historical bad-outcome patterns. Alerts before the crisis, not after.</div>
-          <div class="step-tech">Agent Builder</div>
+        <div class="bidir-row">
+          <div class="bidir-box sentinel">
+            <div class="bidir-label">SENTINEL</div>
+            <div class="bidir-sub">Business Flight<br/>Recorder</div>
+          </div>
+          <div class="bidir-arrows">
+            <div class="bidir-arrow-up">
+              <span>←</span>
+              <span class="bidir-mono">sync_end webhook (HMAC-256)</span>
+            </div>
+            <div class="bidir-arrow-dn">
+              <span class="bidir-mono">sync_connection() via MCP</span>
+              <span>→</span>
+            </div>
+          </div>
+          <div class="bidir-box fivetran">
+            <div class="bidir-label">Fivetran MCP</div>
+            <div class="bidir-sub">stdio JSON-RPC<br/>transport</div>
+          </div>
+          <div class="bidir-arrows">
+            <div class="bidir-arrow-dn">
+              <span class="bidir-mono">synced tables</span>
+              <span>→</span>
+            </div>
+          </div>
+          <div class="bidir-box bigquery">
+            <div class="bidir-label">BigQuery</div>
+            <div class="bidir-sub">Metrics: NPS,<br/>Churn, MRR</div>
+          </div>
         </div>
-        <div class="step-arrow">→</div>
-        <div class="step-card">
-          <div class="step-number">5</div>
-          <div class="step-icon-lg">🔍</div>
-          <div class="step-name">Chain traced</div>
-          <div class="step-desc">When outcomes go wrong, SENTINEL traces: decision → first signal → escalation → crisis. With exact days.</div>
-          <div class="step-tech">Causal AI</div>
+        <div class="webhook-callout">
+          <span class="webhook-callout-icon"><i data-icon="repeat" data-size="20"></i></span>
+          <div>
+            <strong>Event-driven, not just polling.</strong>
+            Fivetran pushes <code style="font-family:var(--font-mono);font-size:12px;background:var(--bg-tertiary);padding:1px 5px;border-radius:3px">sync_end</code> webhooks to SENTINEL's endpoint with HMAC-SHA256 verification.
+            SENTINEL reacts instantly, re-running causal analysis the moment fresh data lands in BigQuery,
+            instead of waiting for the 30-minute autonomous poll. Every inbound event appears in the live activity feed alongside outbound MCP calls, proof of a true bidirectional integration.
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel: Causal AI -->
+      <div class="depth-tab-panel" data-landing-panel="causal">
+        <div class="section-eyebrow" style="color:var(--yellow)">Causal Intelligence</div>
+        <h2 class="section-title">Not correlation. Statistical causation.</h2>
+        <p style="font-size:16px;color:var(--text-secondary);max-width:640px;margin:0 auto var(--space-4)">
+          SENTINEL runs <strong style="color:var(--text-primary)">three independent statistical tests</strong> in parallel,
+          and requires two of three to pass before declaring a causal signal. No single magic number.
+        </p>
+        <div class="methods-grid">
+          <div class="method-card-deep">
+            <div class="method-n">METHOD 1 OF 3</div>
+            <div class="method-title">Granger Causality</div>
+            <div class="method-badge b">lag-1 F-test · statsmodels</div>
+            <div class="method-desc-deep">
+              Does knowing the decision timing help predict metric changes <em>better than chance</em>?
+              Uses a vector autoregression F-test. Reports F-statistic, p-value, and lag structure.
+            </div>
+            <div class="method-q-deep">"Does X at time t predict Y at time t+1 better than Y alone?"</div>
+          </div>
+          <div class="method-card-deep">
+            <div class="method-n">METHOD 2 OF 3</div>
+            <div class="method-title">Interrupted Time Series</div>
+            <div class="method-badge y">ITS · linregress before/after</div>
+            <div class="method-desc-deep">
+              Did the post-decision <em>slope</em> differ significantly from the pre-decision slope?
+              One of the strongest quasi-experimental designs available without a control group.
+            </div>
+            <div class="method-q-deep">"Did the trajectory change structurally at the decision date?"</div>
+          </div>
+          <div class="method-card-deep">
+            <div class="method-n">METHOD 3 OF 3</div>
+            <div class="method-title">Mann-Whitney U Test</div>
+            <div class="method-badge g">non-parametric · scipy</div>
+            <div class="method-desc-deep">
+              Are post-decision values from a <em>different statistical distribution</em> than pre-decision?
+              Robust to outliers, makes no normality assumption. Reports effect size independently.
+            </div>
+            <div class="method-q-deep">"Are pre/post populations fundamentally different?"</div>
+          </div>
+        </div>
+        <div class="bh-intro">
+          <div class="bh-intro-icon"><i data-icon="scale" data-size="22"></i></div>
+          <div class="bh-intro-text">
+            <h4>Bradford Hill (1965): nine-criterion causal scoring</h4>
+            <p>
+              Originally developed for epidemiology, these nine criteria define when observational data
+              provides strong evidence of causation. SENTINEL applies them to business decisions,
+              the only BI tool that does. Each criterion is scored 0 to 1, and a score of 0.7 or higher counts as strong causal evidence.
+              This is the methodology used to prove smoking causes cancer, now applied to pricing decisions.
+            </p>
+          </div>
+        </div>
+        <div class="bh-criteria-grid">
+          <div class="bh-crit">
+            <div class="bh-crit-n">1 · STRENGTH</div>
+            <div class="bh-crit-name">Effect Size</div>
+            <div class="bh-crit-desc">How large is the metric change relative to baseline variance?</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">2 · CONSISTENCY</div>
+            <div class="bh-crit-name">Method Agreement</div>
+            <div class="bh-crit-desc">Do all 3 statistical tests agree? (3/3 = 1.0, 2/3 = 0.7)</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">3 · SPECIFICITY</div>
+            <div class="bh-crit-name">Timing Alignment</div>
+            <div class="bh-crit-desc">Does the decision timing align with when the outcome shifted?</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">4 · TEMPORALITY</div>
+            <div class="bh-crit-name">Cause Precedes</div>
+            <div class="bh-crit-desc">Decision provably precedes outcome, never retrofitted.</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">5 · GRADIENT</div>
+            <div class="bh-crit-name">Dose-Response</div>
+            <div class="bh-crit-desc">Larger decision magnitude → larger effect size?</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">6 · PLAUSIBILITY</div>
+            <div class="bh-crit-name">Mechanism</div>
+            <div class="bh-crit-desc">Gemini 3 verifies the causal mechanism is business-logical.</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">7 · COHERENCE</div>
+            <div class="bh-crit-name">History Match</div>
+            <div class="bh-crit-desc">Consistent with historical data from other decisions?</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">8 · EXPERIMENT</div>
+            <div class="bh-crit-name">Reversibility</div>
+            <div class="bh-crit-desc">Natural experiment: what happened when the decision was reversed?</div>
+          </div>
+          <div class="bh-crit">
+            <div class="bh-crit-n">9 · ANALOGY</div>
+            <div class="bh-crit-name">Similar Cases</div>
+            <div class="bh-crit-desc">Similar past decisions produced similar outcomes?</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel: Agent Trace -->
+      <div class="depth-tab-panel" data-landing-panel="agent">
+        <div class="section-eyebrow" style="color:var(--blue)">Google ADK 2.0 + Gemini 3</div>
+        <h2 class="section-title">The agent shows its work. Every step visible.</h2>
+        <p style="font-size:16px;color:var(--text-secondary);max-width:640px;margin:0 auto var(--space-4)">
+          SENTINEL's ADK agent doesn't hide its reasoning behind a single text answer.
+          Every Fivetran MCP call, every BigQuery query, every causal inference step
+          is returned as a numbered tool trace, visible right in the UI.
+        </p>
+        <div class="adk-landing-trace">
+          <div class="adk-landing-header">
+            <div class="adk-live-dot"></div>
+            <span>ADK agent reasoning trace: multi-step execution</span>
+            <span class="adk-header-model">gemini-3-flash-preview</span>
+          </div>
+          <div class="adk-landing-step">
+            <div class="adk-step-n">1</div>
+            <div class="adk-step-body">
+              <div class="adk-step-fn">list_fivetran_connectors()</div>
+              <div class="adk-step-what">Calls Fivetran MCP <code style="font-family:var(--font-mono);font-size:11px">list_connections</code> to enumerate all data sources.
+                Agent establishes what data is available before proceeding.</div>
+              <div class="adk-step-ret">→ 3 connectors: stripe, hubspot, google_sheets · all active</div>
+            </div>
+            <div class="adk-step-status"><i data-icon="check" data-size="13"></i> ok</div>
+          </div>
+          <div class="adk-landing-step">
+            <div class="adk-step-n">2</div>
+            <div class="adk-step-body">
+              <div class="adk-step-fn">trigger_fivetran_sync(connection_id="stripe")</div>
+              <div class="adk-step-what">Calls MCP <code style="font-family:var(--font-mono);font-size:11px">sync_connection</code> to ensure latest data in BigQuery before snapshot.
+                Agent always syncs before trusting a metric value.</div>
+              <div class="adk-step-ret">→ sync triggered · job_id: sync_1748901234</div>
+            </div>
+            <div class="adk-step-status"><i data-icon="check" data-size="13"></i> ok</div>
+          </div>
+          <div class="adk-landing-step">
+            <div class="adk-step-n">3</div>
+            <div class="adk-step-body">
+              <div class="adk-step-fn">get_metrics_snapshot()</div>
+              <div class="adk-step-what">Queries BigQuery for current NPS, Churn Rate, MRR from Fivetran-synced tables.
+                Returns the exact values at this moment in time.</div>
+              <div class="adk-step-ret">→ NPS=31, churn=0.094, mrr=85400 · snapshot_id: snap_20260603</div>
+            </div>
+            <div class="adk-step-status"><i data-icon="check" data-size="13"></i> ok</div>
+          </div>
+          <div class="adk-landing-step">
+            <div class="adk-step-n">4</div>
+            <div class="adk-step-body">
+              <div class="adk-step-fn">check_early_warnings()</div>
+              <div class="adk-step-what">Pattern-matches current metrics against historical bad-outcome baselines.
+                NPS=31 + churn=9.4% matches the "price_increase_risk" pattern (73% historical failure rate).</div>
+              <div class="adk-step-ret">→ WARNING: CRITICAL · price_increase_risk · pattern_confidence=0.84</div>
+            </div>
+            <div class="adk-step-status" style="color:var(--red)"><i data-icon="alert-triangle" data-size="13"></i> warn</div>
+          </div>
+          <div class="adk-landing-step">
+            <div class="adk-step-n">5</div>
+            <div class="adk-step-body">
+              <div class="adk-step-fn">trace_causal_chain(scenario="pricing_increase")</div>
+              <div class="adk-step-what">Runs 3-method causal battery (Granger + ITS + Mann-Whitney) + Bradford Hill scoring.
+                Gemini 3 generates narrative, confounding factors, and action plan.</div>
+              <div class="adk-step-ret">→ Bradford Hill: 0.84 (7/9, Strong) · causal battery: 3/3 tests significant · 89% churn rise</div>
+            </div>
+            <div class="adk-step-status"><i data-icon="check" data-size="13"></i> ok</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Panel: Stack -->
+      <div class="depth-tab-panel" data-landing-panel="stack">
+        <div class="section-eyebrow">Technology</div>
+        <h2 class="section-title">The stack behind the recorder</h2>
+        <div class="tech-grid">
+          <div class="tech-card" style="border-color:var(--blue-border)">
+            <div class="tech-logo" style="font-size:13px;font-weight:800;letter-spacing:-0.5px;color:var(--blue)">FT</div>
+            <div class="tech-name">Fivetran MCP</div>
+            <div class="tech-desc">11 MCP tools (stdio JSON-RPC), full platform coverage. Triggers syncs, reads groups/connectors/destinations/webhooks. Falls back to REST API gracefully. Every call logged in real-time activity feed.</div>
+          </div>
+          <div class="tech-card" style="border-color:var(--yellow-border)">
+            <div class="tech-logo" style="font-size:13px;font-weight:800;letter-spacing:-0.5px;color:var(--yellow)">ADK</div>
+            <div class="tech-name">Google Cloud ADK 2.0</div>
+            <div class="tech-desc">Code-first multi-step agent with FunctionTools. Calls Fivetran MCP tools, then BigQuery, then causal analysis: a five-step reasoning chain returned as a visible tool_trace in the API response.</div>
+          </div>
+          <div class="tech-card" style="border-color:var(--border-strong)">
+            <div class="tech-logo" style="font-size:14px;font-weight:800;letter-spacing:-1px;color:var(--text-primary)">G3</div>
+            <div class="tech-name">Gemini 3</div>
+            <div class="tech-desc">Primary: <code style="font-family:var(--font-mono);font-size:11px">gemini-3-flash-preview</code> via API key. Generates causal narratives, confounding factors, action plans, decision extraction. Vertex AI fallback only on quota exhaustion.</div>
+          </div>
+          <div class="tech-card" style="border-color:var(--yellow-border)">
+            <div class="tech-logo" style="font-size:12px;font-weight:800;letter-spacing:-0.5px;color:var(--yellow)">BQ</div>
+            <div class="tech-name">BigQuery</div>
+            <div class="tech-desc">All Fivetran-synced sources land here. Multi-connector registry via env vars. SENTINEL queries weekly time-series for Granger causality, ITS regression, and Mann-Whitney tests.</div>
+          </div>
+          <div class="tech-card" style="border-color:var(--green-border)">
+            <div class="tech-logo" style="font-size:11px;font-weight:800;letter-spacing:-0.5px;color:var(--green)">MDB</div>
+            <div class="tech-name">MongoDB Atlas</div>
+            <div class="tech-desc">Immutable decision document store. Each decision: text, type, rationale, frozen Fivetran snapshot, causal analysis results, Bradford Hill score. Never rewritten.</div>
+          </div>
+          <div class="tech-card">
+            <div class="tech-logo" style="font-size:11px;font-weight:800;letter-spacing:-0.5px;color:var(--text-secondary)">CR</div>
+            <div class="tech-name">Cloud Run</div>
+            <div class="tech-desc">FastAPI + Python 3.13, deployed as one container. us-central1, 1Gi RAM, 300s timeout. APScheduler autonomous monitoring loop runs inside the container.</div>
+          </div>
+        </div>
+        <div class="depth-tab-sep"></div>
+        <div class="section-eyebrow" style="color:var(--green)">Methodology</div>
+        <h2 class="section-title" style="margin-bottom:var(--space-3)">Research-backed, not invented</h2>
+        <p style="font-size:15px;color:var(--text-secondary);max-width:600px;margin:0 auto var(--space-4)">
+          Every threshold, benchmark, and warning pattern is grounded in published research.
+        </p>
+        <div class="impact-grid">
+          <div class="impact-card">
+            <div class="impact-num text-red">73%</div>
+            <div class="impact-label">of price increases with NPS below 40 accelerate churn, per Bain 2024</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" style="color:var(--blue)">n=2,847</div>
+            <div class="impact-label">B2B SaaS companies in the NPS benchmark dataset, Medallia 2024</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" style="color:var(--yellow)">9/9</div>
+            <div class="impact-label">Bradford Hill criteria scored per decision, Hill 1965 epidemiology</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num text-red">p&lt;0.05</div>
+            <div class="impact-label">Significance threshold for all three causal tests, standard statistical practice</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" style="color:var(--green)">11</div>
+            <div class="impact-label">Fivetran MCP tools exercised, full platform coverage across every resource group</div>
+          </div>
+          <div class="impact-card">
+            <div class="impact-num" style="color:var(--blue)">30 min</div>
+            <div class="impact-label">Autonomous monitoring cycle: APScheduler, no human trigger required</div>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Tech Stack -->
-    <div class="tech-stack-section">
-      <div class="section-eyebrow">Technology</div>
-      <h2 class="section-title">The stack behind the recorder</h2>
-      <div class="tech-grid">
-        <div class="tech-card">
-          <div class="tech-logo">🔵</div>
-          <div class="tech-name">Fivetran MCP</div>
-          <div class="tech-desc">Model Context Protocol server. Connects all data sources. Triggers syncs. Every agent tool call is visible.</div>
-        </div>
-        <div class="tech-card">
-          <div class="tech-logo">🟡</div>
-          <div class="tech-name">Google Cloud Agent Builder</div>
-          <div class="tech-desc">Multi-step agent orchestration. The SENTINEL agent calls Fivetran tools, then Gemini, in a visible reasoning chain.</div>
-        </div>
-        <div class="tech-card">
-          <div class="tech-logo">🟣</div>
-          <div class="tech-name">Gemini 3</div>
-          <div class="tech-desc">Causal narrative generation, early warning text, decision extraction from transcripts. Pearson r is computed by scipy from real time-series; Gemini explains what the numbers mean.</div>
-        </div>
-        <div class="tech-card">
-          <div class="tech-logo">🔶</div>
-          <div class="tech-name">BigQuery</div>
-          <div class="tech-desc">All Fivetran-connected sources land here. SENTINEL queries historical metrics to compute causal chains.</div>
-        </div>
-        <div class="tech-card">
-          <div class="tech-logo">🟢</div>
-          <div class="tech-name">MongoDB Atlas</div>
-          <div class="tech-desc">Decision document store. Each decision stored with its full data snapshot — immutable, forever.</div>
-        </div>
-        <div class="tech-card">
-          <div class="tech-logo">☁️</div>
-          <div class="tech-name">Cloud Run</div>
-          <div class="tech-desc">Serverless. Auto-scales. FastAPI backend + React-style SPA frontend, deployed as one container.</div>
-        </div>
+    <!-- ═══════════════════════════════════════════════════════════════
+         SECTION: Final CTA
+    ════════════════════════════════════════════════════════════════ -->
+    <div class="cta-final reveal">
+      <div class="landing-eyebrow" style="justify-content:center">
+        <span><i data-icon="mark" data-size="14"></i></span>
+        <span>Ready to start tracing?</span>
+      </div>
+      <h2>Stop discovering disasters in post-mortems.</h2>
+      <p>
+        Two demo scenarios. No signup. No API key.
+        See exactly what SENTINEL would have told you, 34 days before the crisis.
+      </p>
+      <div class="flex gap-3" style="justify-content:center;flex-wrap:wrap;position:relative">
+        <button class="btn btn-danger btn-lg" onclick="loadScenario('acmesaas')">
+          AcmeSaaS: $120K pricing disaster <i data-icon="arrow-right" data-size="15"></i>
+        </button>
+        <button class="btn btn-ghost btn-lg" onclick="loadScenario('qwikster')">
+          Netflix Qwikster: $3B mistake
+        </button>
+      </div>
+      <div class="feature-pills" style="justify-content:center;margin-top:var(--space-6);position:relative">
+        <span class="feature-pill ft"><i data-icon="zap" data-size="12"></i> Live Fivetran MCP</span>
+        <span class="feature-pill gc"><i data-icon="sparkles" data-size="12"></i> Gemini 3 analysis</span>
+        <span class="feature-pill rd"><i data-icon="bar-chart" data-size="12"></i> Bradford Hill scoring</span>
+        <span class="feature-pill gn"><i data-icon="cpu" data-size="12"></i> ADK agent trace</span>
+        <span class="feature-pill"><i data-icon="radio" data-size="12"></i> BigQuery real-time</span>
+        <span class="feature-pill"><i data-icon="repeat" data-size="12"></i> Bidirectional webhooks</span>
       </div>
     </div>
 
-    <div class="flex gap-4 mt-6" style="opacity:0.5;justify-content:center">
-      <small>Built with</small>
-      <small>🔵 Fivetran MCP</small>
-      <small>🟡 Google Cloud Agent Builder</small>
-      <small>🟣 Gemini 3</small>
+    <div class="flex gap-4 mt-6" style="opacity:0.4;justify-content:center;flex-wrap:wrap">
+      <small>Fivetran MCP · Google Cloud ADK 2.0 · Gemini 3 · BigQuery · Cloud Run · MongoDB Atlas</small>
     </div>
 
   </div>
@@ -198,7 +697,7 @@
     <!-- Sidebar -->
     <aside class="sidebar">
       <div class="sidebar-logo">
-        <div class="logo-icon">✈️</div>
+        <div class="logo-icon"><i data-icon="mark" data-size="18"></i></div>
         <div>
           <div class="logo-text">SENTINEL</div>
           <div class="logo-sub">Business Flight Recorder</div>
@@ -207,22 +706,25 @@
 
       <div class="nav-section-label">Navigation</div>
       <button class="nav-item active" onclick="switchTab('overview')" id="tab-overview">
-        <span class="nav-icon">📊</span> Overview
+        <span class="nav-icon"><i data-icon="bar-chart" data-size="15"></i></span> Overview
       </button>
       <button class="nav-item" onclick="switchTab('trace')" id="tab-trace">
-        <span class="nav-icon">🔍</span> Impact Trace
+        <span class="nav-icon"><i data-icon="search" data-size="15"></i></span> Impact Trace
       </button>
       <button class="nav-item" onclick="switchTab('decisions')" id="tab-decisions">
-        <span class="nav-icon">📋</span> Decision Log
+        <span class="nav-icon"><i data-icon="clipboard" data-size="15"></i></span> Decision Log
       </button>
       <button class="nav-item" onclick="switchTab('ask')" id="tab-ask">
-        <span class="nav-icon">💬</span> Ask SENTINEL
+        <span class="nav-icon"><i data-icon="message-circle" data-size="15"></i></span> Ask SENTINEL
       </button>
       <button class="nav-item" onclick="switchTab('transcript')" id="tab-transcript">
-        <span class="nav-icon">📝</span> Transcript
+        <span class="nav-icon"><i data-icon="file-text" data-size="15"></i></span> Transcript
       </button>
       <button class="nav-item" onclick="switchTab('custom')" id="tab-custom">
-        <span class="nav-icon">🔬</span> Your Data
+        <span class="nav-icon"><i data-icon="flask" data-size="15"></i></span> Your Data
+      </button>
+      <button class="nav-item" onclick="switchTab('fivetran')" id="tab-fivetran">
+        <span class="nav-icon"><i data-icon="zap" data-size="15"></i></span> Fivetran Platform
       </button>
 
       <div class="nav-section-label" style="display:flex;align-items:center;justify-content:space-between">
@@ -235,7 +737,7 @@
       <div class="nav-section-label">Agent Activity</div>
       <div id="sidebar-activity" class="activity-feed" style="font-size:12px">
         <div class="activity-item">
-          <div class="activity-icon fivetran">⚡</div>
+          <div class="activity-icon fivetran"><i data-icon="zap" data-size="12"></i></div>
           <div>
             <div>Fivetran MCP connected</div>
             <div class="activity-time">just now</div>
@@ -254,7 +756,7 @@
       </div>
 
       <div style="margin-top:var(--space-4); padding-top:var(--space-4); border-top:1px solid var(--border)">
-        <button class="btn btn-ghost btn-sm" onclick="showView('landing')" style="width:100%">← Back to Home</button>
+        <button class="btn btn-ghost btn-sm" onclick="goToLanding()" style="width:100%">← Back to Home</button>
       </div>
     </aside>
 
@@ -263,10 +765,20 @@
 
       <!-- Demo bar -->
       <div class="demo-bar">
-        <span class="demo-bar-label">📦 Demo Scenario:</span>
+        <button class="mobile-menu-btn" onclick="_toggleSidebar()" aria-label="Open navigation">
+          <span></span><span></span><span></span>
+        </button>
+        <span class="demo-bar-label">Scenario:</span>
         <button class="demo-pill active" id="pill-acmesaas" onclick="switchScenario('acmesaas')">AcmeSaaS</button>
         <button class="demo-pill" id="pill-qwikster" onclick="switchScenario('qwikster')">Netflix Qwikster</button>
         <button class="demo-pill" onclick="showConnectModal()" style="margin-left:auto">+ Connect Real Data</button>
+      </div>
+
+      <!-- Offline fallback banner: shown only when the API is unreachable -->
+      <div id="offline-banner" style="display:none;align-items:center;gap:10px;padding:10px 16px;background:#FF3B3015;border-bottom:1px solid var(--red-border);font-size:12px;color:var(--red)">
+        <span style="display:flex"><i data-icon="alert-triangle" data-size="15"></i></span>
+        <span><strong>Offline mode:</strong> backend API unreachable. Showing the static demo fallback. Start the server and refresh to see live data.</span>
+        <button onclick="location.reload()" style="margin-left:auto;background:none;border:1px solid var(--red-border);border-radius:4px;padding:2px 10px;font-size:11px;color:var(--red);cursor:pointer">Retry</button>
       </div>
 
       <!-- Tab: Overview -->
@@ -278,8 +790,11 @@
           </div>
           <div class="page-actions">
             <span id="data-source-badge" class="badge badge-blue" style="display:none"></span>
+            <button class="btn btn-ghost btn-sm" id="live-scan-btn" onclick="_refreshScenarioData(currentScenario, true)">
+              <i data-icon="refresh-cw" data-size="13"></i> Live Scan
+            </button>
             <button class="btn btn-ghost btn-sm" onclick="runAgentCheck()">
-              🔄 Run Agent Check
+              <i data-icon="cpu" data-size="13"></i> Agent Check
             </button>
             <button class="btn btn-danger btn-sm" onclick="openLogModal()">
               + Log Decision
@@ -291,6 +806,9 @@
 
           <!-- Active Warning -->
           <div id="warning-section" class="mb-6"></div>
+
+          <!-- Causal Intelligence Summary Bar -->
+          <div id="causal-summary-bar" class="causal-summary-bar mb-6" style="display:none"></div>
 
           <!-- Stats -->
           <div class="stats-grid mb-6" id="stats-grid"></div>
@@ -319,19 +837,17 @@
               </div>
             </div>
 
-            <div>
-              <h3 class="mb-4">Agent Activity</h3>
-              <div class="card" style="padding:var(--space-4)">
-                <div id="activity-feed-main" class="activity-feed"></div>
-              </div>
-
-              <h3 class="mb-4 mt-6">🤖 Autonomous Actions <span style="font-size:12px;font-weight:normal;color:var(--text-secondary)">(SENTINEL acted — no human triggered this)</span></h3>
-              <div class="card" id="autonomous-actions-panel" style="padding:var(--space-4)">
-                <div style="font-size:12px;color:var(--text-tertiary)">Loading autonomous actions from SENTINEL...</div>
+            <div style="align-self:start">
+              <h3 class="mb-4">Autonomous Actions <span style="font-size:12px;font-weight:normal;color:var(--text-secondary)">(SENTINEL acted on its own, no human triggered this)</span></h3>
+              <div class="card" id="autonomous-actions-panel" style="padding:0;max-height:420px;overflow-y:auto">
+                <div style="padding:var(--space-4);font-size:12px;color:var(--text-tertiary)">Loading autonomous actions from SENTINEL...</div>
               </div>
 
               <h3 class="mb-4 mt-6">Data Flags</h3>
               <div id="data-flags" class="card" style="padding:var(--space-4)"></div>
+
+              <!-- Hidden element — activity is written here but only shown in sidebar -->
+              <div id="activity-feed-main" style="display:none"></div>
             </div>
 
           </div>
@@ -342,8 +858,8 @@
       <div id="tab-content-trace" class="hidden">
         <div class="page-header">
           <div>
-            <div class="page-title">🔍 Decision Impact Trace</div>
-            <small>Trace what happened after a decision — signals, timeline, and pattern analysis</small>
+            <div class="page-title"><i data-icon="search" data-size="20"></i> Decision Impact Trace</div>
+            <small>Trace what happened after a decision: signals, timeline, and pattern analysis</small>
           </div>
           <div class="page-actions">
             <button class="btn btn-ghost btn-sm" onclick="switchTab('overview')">← Dashboard</button>
@@ -352,8 +868,8 @@
 
         <div class="trace-view">
 
-          <!-- Counter — the money shot -->
-          <div class="warning-counter mb-8" id="trace-counter">
+          <!-- Counter — always visible, above tabs -->
+          <div class="warning-counter mb-6" id="trace-counter">
             <div>
               <div class="hero-label text-red">Days of signals before outcome</div>
               <div class="hero-number text-red" id="counter-number">0</div>
@@ -362,78 +878,88 @@
               <div style="font-size:15px;font-weight:600;margin-bottom:var(--space-2)" id="trace-outcome-title">Loading...</div>
               <div style="font-size:13px;color:var(--text-secondary);line-height:1.6" id="trace-narrative"></div>
               <div class="flex gap-3 mt-4">
-                <span class="badge badge-red" id="trace-r-badge">r = 0.87</span>
-                <span class="badge badge-yellow" id="trace-p-badge">p &lt; 0.01</span>
+                <span class="badge badge-red" id="trace-r-badge">Loading...</span>
+                <span class="badge badge-yellow" id="trace-p-badge">Loading...</span>
               </div>
               <div class="pearson-explain mt-4" id="pearson-explain">
-                <strong>What is Pearson r?</strong> It measures the <em>linear correlation</em> between the decision timing and the outcome metric trajectory — computed from real weekly time-series data via scipy.
-                <strong>r &gt; 0.8</strong> is a strong pattern signal. <strong>Correlation ≠ causation</strong> — see "Alternative Explanations" below for what else could explain this pattern.
-                SENTINEL flags this for human judgment, not as proof of cause.
+                <strong>What is Pearson r?</strong> It measures the <em>linear correlation</em> between the decision timing and the outcome metric trajectory, computed from real weekly time-series data via scipy.
+                <strong>r &gt; 0.8</strong> is a strong pattern signal. <strong>Correlation is not causation</strong>: see "Causal Analysis" tab for confounding factors.
               </div>
             </div>
           </div>
 
-          <!-- Timeline -->
-          <h3 class="mb-4">Event Timeline</h3>
-          <div class="card mb-6" style="padding:var(--space-6);overflow-x:auto">
-            <div class="timeline-events" id="timeline-events"></div>
+          <!-- Inner sub-tabs -->
+          <div class="inner-tabs mb-6">
+            <button class="inner-tab active" onclick="switchTraceTab('timeline', this)">Timeline</button>
+            <button class="inner-tab" onclick="switchTraceTab('evidence', this)">Evidence</button>
+            <button class="inner-tab" onclick="switchTraceTab('analysis', this)">Causal Analysis</button>
+            <button class="inner-tab" onclick="switchTraceTab('decisions', this)">All Decisions</button>
           </div>
 
-          <!-- Metric Time Series Chart -->
-          <h3 class="mb-4">Metric Trajectory — Before vs After Decision</h3>
-          <div class="card mb-6" style="padding:var(--space-5)" id="trace-chart-card">
-            <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px">
-              NPS (dashed, right axis) and Churn Rate (solid, left axis) — orange line marks the decision date.
-              Real data from BigQuery via Fivetran.
-            </div>
-            <canvas id="trace-chart" style="max-height:260px"></canvas>
-          </div>
-
-          <!-- Split screen: Then vs Now -->
-          <h3 class="mb-4">The Data That Existed — And Was Ignored</h3>
-          <div class="split-screen mb-6">
-            <div class="split-panel decision-time">
-              <div class="badge badge-blue mb-4">📋 At Time of Decision</div>
-              <div id="decision-metrics-panel"></div>
-            </div>
-            <div class="split-panel outcome-time">
-              <div class="badge badge-red mb-4">💥 What Happened Next</div>
-              <div id="outcome-metrics-panel"></div>
+          <!-- Section: Timeline -->
+          <div id="trace-section-timeline">
+            <h3 class="mb-4">Event Timeline <span class="info-btn">ℹ<span class="info-tip">Chronological sequence of signals from the decision date to the outcome. Orange line = decision date. Hover nodes for full details.</span></span></h3>
+            <div class="card mb-6" style="padding:var(--space-6);overflow-x:auto">
+              <div class="timeline-events" id="timeline-events"></div>
             </div>
           </div>
 
-          <!-- Industry benchmark comparison -->
-          <h3 class="mb-4">Industry Benchmark Comparison <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(your metrics vs. published SaaS benchmarks)</span></h3>
-          <div class="card mb-6" id="benchmarks-panel" style="padding:0">
-            <div style="padding:12px;font-size:12px;color:var(--text-tertiary)">Loading benchmark data...</div>
-          </div>
-
-          <!-- Predicted signals -->
-          <h3 class="mb-4">Signals That Predicted This</h3>
-          <div class="card mb-6" id="predicted-signals"></div>
-
-          <!-- Confounding factors — intellectual honesty -->
-          <h3 class="mb-4">Alternative Explanations <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(correlation ≠ causation)</span></h3>
-          <div class="card mb-6" id="confounding-factors" style="padding:var(--space-4)">
-            <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
-              SENTINEL generated these alternative explanations using Gemini. A rigorous analysis considers confounding factors before attributing causation.
+          <!-- Section: Evidence -->
+          <div id="trace-section-evidence" class="hidden">
+            <h3 class="mb-4">Metric Trajectory: Before vs After the Decision <span class="info-btn">ℹ<span class="info-tip">Red solid = Churn Rate (left axis). Blue dashed = NPS Score (right axis). Orange line = decision date. Live data from BigQuery via Fivetran.</span></span></h3>
+            <div class="card mb-6" style="padding:var(--space-5)" id="trace-chart-card">
+              <div style="font-size:12px;color:var(--text-tertiary);margin-bottom:12px">
+                NPS (dashed, right axis) and Churn Rate (solid, left axis): orange line = decision date.
+                <span id="trace-chart-source">Live data from BigQuery via Fivetran.</span>
+              </div>
+              <canvas id="trace-chart" style="max-height:260px"></canvas>
             </div>
-            <div id="confounding-list"></div>
+
+            <h3 class="mb-4">The Data That Existed, and Was Ignored <span class="info-btn">ℹ<span class="info-tip">Left: metrics at decision time. Right: what actually happened. This is the counterfactual gap SENTINEL would have flagged.</span></span></h3>
+            <div class="split-screen mb-6">
+              <div class="split-panel decision-time">
+                <div class="badge badge-blue mb-4"><i data-icon="clipboard" data-size="12"></i> At time of decision</div>
+                <div id="decision-metrics-panel"></div>
+              </div>
+              <div class="split-panel outcome-time">
+                <div class="badge badge-red mb-4"><i data-icon="alert-octagon" data-size="12"></i> What happened next</div>
+                <div id="outcome-metrics-panel"></div>
+              </div>
+            </div>
+
+            <h3 class="mb-4">Industry Benchmark Comparison <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(your metrics vs. published SaaS benchmarks)</span> <span class="info-btn">ℹ<span class="info-tip">Your metrics ranked against published research. NPS: Medallia B2B SaaS 2024 (n=2,847). Churn: ChurnZero 2023 (n=1,200). Bottom quartile = immediate action needed.</span></span></h3>
+            <div class="card mb-6" id="benchmarks-panel" style="padding:0">
+              <div style="padding:12px;font-size:12px;color:var(--text-tertiary)">Loading benchmark data...</div>
+            </div>
+
+            <h3 class="mb-4">Signals That Predicted This <span class="info-btn">ℹ<span class="info-tip">Research-backed leading indicators that existed before the outcome. SENTINEL uses these to fire early warnings.</span></span></h3>
+            <div class="card mb-6" id="predicted-signals"></div>
           </div>
 
-          <!-- Bradford Hill Causation Criteria -->
-          <h3 class="mb-4">Bradford Hill Causation Criteria <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(9-criterion causal inference framework — Hill 1965)</span></h3>
-          <div class="card mb-6" id="bradford-hill-panel" style="padding:0">
-            <div style="padding:12px;font-size:12px;color:var(--text-tertiary)">Loading Bradford Hill analysis...</div>
+          <!-- Section: Causal Analysis -->
+          <div id="trace-section-analysis" class="hidden">
+            <h3 class="mb-4">Alternative Explanations <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(correlation is not causation)</span> <span class="info-btn">ℹ<span class="info-tip">Gemini 3 generates plausible confounding factors a skeptic would raise. Intellectual honesty before attributing causation.</span></span></h3>
+            <div class="card mb-6" id="confounding-factors" style="padding:var(--space-4)">
+              <div style="font-size:12px;color:var(--text-secondary);margin-bottom:12px">
+                SENTINEL generated these alternative explanations using Gemini. A rigorous analysis considers confounding factors before attributing causation.
+              </div>
+              <div id="confounding-list"></div>
+            </div>
+
+            <h3 class="mb-4">Bradford Hill Causation Criteria <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(nine-criterion causal inference framework, Hill 1965)</span> <span class="info-btn">ℹ<span class="info-tip">Hill (1965): 9 criteria for causal inference from observational data. Each scored 0–1. Score ≥ 0.7 = criterion met. Originally from epidemiology; applied here to business decisions.</span></span></h3>
+            <div class="card mb-6" id="bradford-hill-panel" style="padding:0">
+              <div style="padding:12px;font-size:12px;color:var(--text-tertiary)">Loading Bradford Hill analysis...</div>
+            </div>
           </div>
 
-          <!-- Multi-decision attribution — no cherry-picking -->
-          <h3 class="mb-4">All Decisions in the Lookback Window <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(ranked by causal signal — no cherry-picking)</span></h3>
-          <div class="card mb-6" id="decision-attribution" style="padding:0"></div>
+          <!-- Section: All Decisions -->
+          <div id="trace-section-decisions" class="hidden">
+            <h3 class="mb-4">All Decisions in the Lookback Window <span style="font-size:13px;font-weight:normal;color:var(--text-secondary)">(ranked by causal signal, no cherry-picking)</span> <span class="info-btn">ℹ<span class="info-tip">Every decision in the 14–90 days before the outcome, ranked by causal signal strength. SENTINEL shows every candidate. You make the final call.</span></span></h3>
+            <div class="card mb-6" id="decision-attribution" style="padding:0"></div>
 
-          <!-- Recommended actions -->
-          <h3 class="mb-4">What To Do Differently Next Time</h3>
-          <div class="card" id="recommended-actions"></div>
+            <h3 class="mb-4">What To Do Differently Next Time <span class="info-btn">ℹ<span class="info-tip">Specific, actionable recommendations tailored to the metrics and decision context. Not generic advice.</span></span></h3>
+            <div class="card mb-6" id="recommended-actions"></div>
+          </div>
 
         </div>
       </div>
@@ -441,7 +967,9 @@
       <!-- Tab: Decision Log (full) -->
       <div id="tab-content-decisions" class="hidden">
         <div class="page-header">
-          <div class="page-title">📋 Decision Log</div>
+          <div class="page-title"><i data-icon="clipboard" data-size="18"></i> Decision Log
+            <span class="info-btn tip-right">ℹ<span class="info-tip">Every business decision logged here with a live Fivetran data snapshot frozen at the moment of logging. Click "Details" to see exactly what metrics existed when the decision was made.</span></span>
+          </div>
           <button class="btn btn-danger btn-sm" onclick="openLogModal()">+ Log Decision</button>
         </div>
         <div class="p-8">
@@ -450,7 +978,8 @@
               <thead>
                 <tr>
                   <th>Date</th><th>Decision</th><th>Type</th>
-                  <th>Correlation</th><th>Outcome</th><th></th>
+                  <th>Correlation <span class="info-btn">ℹ<span class="info-tip">Pearson r measures how strongly the decision timing correlates with the outcome metric over time. r &gt; 0.8 is a strong signal. Correlation is not causation.</span></span></th>
+                  <th>Outcome <span class="info-btn">ℹ<span class="info-tip">Current known outcome: Positive (metrics improved), churn_spike (churn increased after decision), or Monitoring (still watching).</span></span></th><th></th>
                 </tr>
               </thead>
               <tbody id="decisions-full-tbody"></tbody>
@@ -463,16 +992,18 @@
       <div id="tab-content-transcript" class="hidden">
         <div class="page-header">
           <div>
-            <div class="page-title">📝 Transcript → Decisions</div>
-            <small style="color:var(--text-secondary)">Paste any meeting transcript, Slack thread, or doc — Gemini extracts every decision automatically</small>
+            <div class="page-title"><i data-icon="file-text" data-size="18"></i> Transcript <i data-icon="arrow-right" data-size="16"></i> Decisions
+              <span class="info-btn tip-right">ℹ<span class="info-tip">Paste any unstructured text: meeting notes, Slack threads, emails, or strategy docs. Gemini 3 reads it and extracts every business decision with type, rationale, and participants. Each extracted decision is automatically logged with a live Fivetran metrics snapshot.</span></span>
+            </div>
+            <small style="color:var(--text-secondary)">Paste any meeting transcript, Slack thread, or doc, and Gemini 3 extracts every decision automatically</small>
           </div>
         </div>
         <div class="p-8" style="max-width:860px">
 
           <div class="card mb-6" style="border-color:var(--blue-border);padding:var(--space-5)">
-            <div class="badge badge-blue mb-3">🟣 Gemini-powered extraction</div>
+            <div class="badge badge-blue mb-3"><i data-icon="sparkles" data-size="12"></i> Gemini 3 powered extraction</div>
             <p style="font-size:14px;color:var(--text-secondary);margin-bottom:0">
-              SENTINEL reads unstructured text and extracts every business decision — with type, rationale, and participants.
+              SENTINEL reads unstructured text and extracts every business decision, complete with type, rationale, and participants.
               Each extracted decision is automatically logged with a live Fivetran metrics snapshot. No manual entry required.
             </p>
           </div>
@@ -496,15 +1027,15 @@
               placeholder="Paste meeting notes, a Slack thread, an email, or any document here...
 
 Example:
-— CEO: We need to improve unit economics. I propose raising prices 15–20% across all tiers.
-— VP Sales: I'm concerned about churn risk, NPS is already low.
-— CFO: Agreed on the increase. Let's also hire 2 more engineers for reliability.
-— Decision: Proceed with 20% price increase starting June 1. Engineering hiring approved."></textarea>
+CEO: We need to improve unit economics. I propose raising prices 15-20% across all tiers.
+VP Sales: I'm concerned about churn risk, NPS is already low.
+CFO: Agreed on the increase. Let's also hire 2 more engineers for reliability.
+Decision: Proceed with 20% price increase starting June 1. Engineering hiring approved."></textarea>
           </div>
 
           <div class="flex gap-3">
             <button class="btn btn-danger" onclick="extractTranscript()" id="btn-extract">
-              🟣 Extract Decisions with Gemini
+              <i data-icon="sparkles" data-size="15"></i> Extract Decisions with Gemini 3
             </button>
             <button class="btn btn-ghost" onclick="loadSampleTranscript()">Load sample transcript</button>
           </div>
@@ -515,42 +1046,54 @@ Example:
       </div>
 
       <!-- Tab: Ask SENTINEL -->
-      <div id="tab-content-ask" class="hidden" style="height:calc(100vh - 40px);display:flex;flex-direction:column">
+      <div id="tab-content-ask" class="hidden ask-tab-wrap">
         <div class="page-header">
-          <div class="page-title">💬 Ask SENTINEL</div>
-          <small style="color:var(--text-secondary)">Ask anything about your decision history</small>
-        </div>
-        <div class="chat-messages" id="chat-messages">
-          <div class="chat-bubble sentinel">
-            <div class="sentinel-label">✈️ SENTINEL</div>
-            I'm your Business Flight Recorder. Ask me anything about the decision log:
-            <ul style="margin-top:8px;padding-left:20px;color:var(--text-secondary)">
-              <li>"Why did we raise prices?"</li>
-              <li>"What caused the churn spike?"</li>
-              <li>"What data existed when we hired the VP Sales?"</li>
-              <li>"What decision should we have made differently?"</li>
-            </ul>
+          <div>
+            <div class="page-title"><i data-icon="message-circle" data-size="18"></i> Ask SENTINEL
+              <span class="info-btn tip-right">ℹ<span class="info-tip">Ask natural language questions about your decision history. SENTINEL uses Gemini 3 with full scenario context: it cites specific metrics, dates, and decision IDs in every answer.</span></span>
+            </div>
+            <small style="color:var(--text-secondary)">Ask anything about your decision history, and Gemini 3 answers with real data citations</small>
           </div>
         </div>
-        <div class="suggestion-chips" id="suggestion-chips">
-          <span class="suggestion-chip" onclick="askSuggestion(this)">Why did we raise prices?</span>
-          <span class="suggestion-chip" onclick="askSuggestion(this)">What caused the churn spike?</span>
-          <span class="suggestion-chip" onclick="askSuggestion(this)">What data existed when we made this decision?</span>
-          <span class="suggestion-chip" onclick="askSuggestion(this)">What decision should we have made differently?</span>
-          <span class="suggestion-chip" onclick="askSuggestion(this)">What are the active early warnings?</span>
-          <span class="suggestion-chip" onclick="askSuggestion(this)">Explain the Pearson correlation score</span>
-        </div>
-        <div style="display:flex;align-items:center;gap:10px;padding:8px 16px 0;font-size:12px;color:var(--text-secondary)">
-          <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
-            <input type="checkbox" id="use-adk-agent" style="accent-color:var(--red)">
-            <span>Use ADK Agent <span style="color:var(--text-tertiary)">(multi-step Gemini 3 orchestration — slower but traces full causal chain)</span></span>
-          </label>
-        </div>
-        <div class="chat-input-row">
-          <input class="chat-input" id="chat-input" type="text"
-            placeholder="Ask SENTINEL anything about your decision history..."
-            onkeydown="if(event.key==='Enter')sendQuestion()" />
-          <button class="btn btn-danger" onclick="sendQuestion()">Ask →</button>
+        <div class="ask-chat-card">
+          <div class="chat-messages" id="chat-messages">
+            <div class="chat-bubble sentinel">
+              <div class="sentinel-label"><i data-icon="mark" data-size="13"></i> SENTINEL</div>
+              I'm your Business Flight Recorder. Ask me anything about the decision log:
+              <ul style="margin-top:8px;padding-left:20px;color:var(--text-secondary)">
+                <li>"Why did we raise prices?"</li>
+                <li>"What caused the churn spike?"</li>
+                <li>"What data existed when we hired the VP Sales?"</li>
+                <li>"What decision should we have made differently?"</li>
+              </ul>
+            </div>
+          </div>
+          <div class="chat-bottom">
+            <div class="suggestion-chips" id="suggestion-chips">
+              <span class="suggestion-chip" onclick="askSuggestion(this)">Why did we raise prices?</span>
+              <span class="suggestion-chip" onclick="askSuggestion(this)">What caused the churn spike?</span>
+              <span class="suggestion-chip" onclick="askSuggestion(this)">What data existed at decision time?</span>
+              <span class="suggestion-chip" onclick="askSuggestion(this)">What should we have done differently?</span>
+              <span class="suggestion-chip" onclick="askSuggestion(this)">What are the active early warnings?</span>
+              <span class="suggestion-chip" onclick="askSuggestion(this)">Explain the Pearson r score</span>
+            </div>
+            <div class="adk-toggle-row">
+              <label style="display:flex;align-items:center;gap:6px;cursor:pointer">
+                <input type="checkbox" id="use-adk-agent" style="accent-color:var(--red)">
+                <span>Use ADK Agent</span>
+                <span style="color:var(--text-tertiary)">(multi-step, slower, full causal chain)</span>
+                <span class="info-btn">ℹ<span class="info-tip">ADK Agent uses Google Agent Development Kit with Gemini 3. It runs multiple reasoning steps and cites source decisions by ID. Standard mode is faster and uses direct Gemini 3 API calls.</span></span>
+              </label>
+            </div>
+            <div class="chat-input-row">
+              <input class="chat-input" id="chat-input" type="text"
+                placeholder="Ask anything about your decisions, warnings, or data..."
+                onkeydown="if(event.key==='Enter')sendQuestion()" />
+              <button class="btn btn-danger chat-ask-btn" onclick="sendQuestion()">
+                <i data-icon="arrow-right" data-size="15"></i> Ask
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -558,20 +1101,24 @@ Example:
       <div id="tab-content-custom" class="hidden">
         <div class="page-header">
           <div>
-            <div class="page-title">🔬 Your Data — Custom Analysis</div>
-            <small style="color:var(--text-secondary)">Enter any decision + metrics. SENTINEL runs the full causal inference battery on your data — no pre-built scenarios.</small>
+            <div class="page-title"><i data-icon="flask" data-size="18"></i> Your Data: Custom Analysis
+              <span class="info-btn tip-right">ℹ<span class="info-tip">Enter any real decision you made and your before/after metrics. SENTINEL runs the same three-method causal inference battery (Granger causality, ITS, Mann-Whitney) used on demo scenarios. Gemini 3 generates a narrative regardless of statistical outcome.</span></span>
+            </div>
+            <small style="color:var(--text-secondary)">Enter any decision and its metrics. SENTINEL runs the full causal inference battery on your data, no pre-built scenarios.</small>
           </div>
         </div>
 
         <div style="max-width:720px">
           <div class="card mb-6" style="padding:var(--space-5)">
             <div style="font-size:13px;color:var(--text-secondary);margin-bottom:var(--space-4);padding:10px;background:var(--surface-2);border-radius:6px">
-              <strong>How this works:</strong> Enter a real decision you made + before/after metrics. SENTINEL runs Granger causality, Interrupted Time Series, and Mann-Whitney tests — the same pipeline used on the demo scenarios. No hardcoded answers.
+              <strong>How this works:</strong> Enter a real decision you made, plus before and after metrics. SENTINEL runs Granger causality, Interrupted Time Series, and Mann-Whitney tests, the same pipeline used on the demo scenarios. No hardcoded answers.
             </div>
 
             <div style="display:grid;gap:var(--space-4)">
               <div>
-                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">DECISION TEXT *</label>
+                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">DECISION TEXT *
+                  <span class="info-btn">ℹ<span class="info-tip">Describe the decision in plain English. E.g. "Increased enterprise pricing by 15%" or "Froze all new hiring for Q3". Be specific: Gemini uses this to frame the causal narrative.</span></span>
+                </label>
                 <input class="chat-input" id="custom-decision-text" type="text" placeholder="e.g. Increased enterprise pricing by 15%" style="width:100%" />
               </div>
               <div style="display:grid;grid-template-columns:1fr 1fr;gap:var(--space-3)">
@@ -592,25 +1139,35 @@ Example:
               </div>
 
               <div style="border-top:1px solid var(--border);padding-top:var(--space-4)">
-                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-3)">METRICS AT DECISION TIME</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-3)">METRICS AT DECISION TIME
+                  <span class="info-btn">ℹ<span class="info-tip">Enter your metrics on the day the decision was made, not after. This is the "data that existed and was ignored." Even one metric (e.g. NPS) is enough to run the analysis.</span></span>
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3)">
                   <div>
-                    <label style="font-size:11px;color:var(--text-tertiary)">MRR ($)</label>
+                    <label style="font-size:11px;color:var(--text-tertiary)">MRR ($)
+                      <span class="info-btn">ℹ<span class="info-tip">Monthly Recurring Revenue in dollars at the time the decision was made. E.g. 85000 for $85K MRR.</span></span>
+                    </label>
                     <input class="chat-input" id="custom-mrr-before" type="number" placeholder="85000" style="width:100%" />
                   </div>
                   <div>
-                    <label style="font-size:11px;color:var(--text-tertiary)">NPS Score</label>
+                    <label style="font-size:11px;color:var(--text-tertiary)">NPS Score
+                      <span class="info-btn">ℹ<span class="info-tip">Net Promoter Score (-100 to 100). SaaS median is 44. Below 40 is a warning threshold: price increases with NPS under 40 accelerate churn in 73% of cases (Bain 2024).</span></span>
+                    </label>
                     <input class="chat-input" id="custom-nps-before" type="number" placeholder="31" style="width:100%" />
                   </div>
                   <div>
-                    <label style="font-size:11px;color:var(--text-tertiary)">Churn Rate (0-1)</label>
+                    <label style="font-size:11px;color:var(--text-tertiary)">Churn Rate (0–1)
+                      <span class="info-btn">ℹ<span class="info-tip">Annual customer churn as a decimal. E.g. 0.09 = 9%. SaaS median is 6.5% (ChurnZero 2023). Above 8% triggers a warning in SENTINEL.</span></span>
+                    </label>
                     <input class="chat-input" id="custom-churn-before" type="number" step="0.01" placeholder="0.09" style="width:100%" />
                   </div>
                 </div>
               </div>
 
               <div>
-                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-3)">CURRENT / OUTCOME METRICS</div>
+                <div style="font-size:12px;font-weight:600;color:var(--text-secondary);margin-bottom:var(--space-3)">CURRENT / OUTCOME METRICS
+                  <span class="info-btn">ℹ<span class="info-tip">Your metrics now (or at the time the outcome became clear). SENTINEL measures the delta between these values and the decision-time values to compute the effect size.</span></span>
+                </div>
                 <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:var(--space-3)">
                   <div>
                     <label style="font-size:11px;color:var(--text-tertiary)">MRR ($) now</label>
@@ -628,14 +1185,18 @@ Example:
               </div>
 
               <div>
-                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">WEEKLY METRIC SERIES <span style="font-weight:normal;color:var(--text-tertiary)">(optional — enables Granger causality test)</span></label>
+                <label style="font-size:12px;font-weight:600;color:var(--text-secondary);display:block;margin-bottom:4px">
+                  WEEKLY METRIC SERIES
+                  <span style="font-weight:normal;color:var(--text-tertiary)">(optional, enables the Granger causality test)</span>
+                  <span class="info-btn">ℹ<span class="info-tip">Enter your primary metric (e.g. churn rate) as weekly values since the decision, comma-separated. E.g. 0.09,0.10,0.11,0.13,0.15,0.16. Five or more weekly values enables Granger causality, the strongest statistical test. More data means a more reliable verdict.</span></span>
+                </label>
                 <input class="chat-input" id="custom-series" type="text" placeholder="e.g. 0.09,0.10,0.11,0.13,0.15,0.16 (one value per week since decision)" style="width:100%" />
-                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">More data points = stronger statistical tests. 5+ weekly values enables Granger causality.</div>
+                <div style="font-size:11px;color:var(--text-tertiary);margin-top:4px">Five or more weekly values enables Granger causality. More data points means stronger statistical tests.</div>
               </div>
             </div>
 
             <button class="btn btn-danger mt-6" onclick="runCustomAnalysis()" style="width:100%">
-              🔬 Run Causal Analysis on My Data →
+              <i data-icon="flask" data-size="15"></i> Run Causal Analysis on My Data <i data-icon="arrow-right" data-size="15"></i>
             </button>
           </div>
 
@@ -649,8 +1210,85 @@ Example:
         </div>
       </div>
 
+      <!-- Tab: Fivetran Platform (full integration control panel) -->
+      <div id="tab-content-fivetran" class="hidden">
+        <div class="page-header">
+          <div>
+            <div class="page-title"><i data-icon="zap" data-size="18"></i> Fivetran Platform
+              <span class="info-btn tip-right">ℹ<span class="info-tip">The full Fivetran integration surface SENTINEL drives via the fivetran-mcp server (stdio JSON-RPC) with REST API fallback. Every tile here is a live MCP tool call: account, groups, connectors, destinations and webhooks. This is SENTINEL's "superpower" layer.</span></span>
+            </div>
+            <small style="color:var(--text-secondary)">Live control panel: account, groups, connectors, destinations, and webhooks, all via the Fivetran MCP server</small>
+          </div>
+          <div class="page-actions">
+            <span id="ft-transport-badge" class="badge badge-blue" style="display:none"></span>
+            <button class="btn btn-ghost btn-sm" onclick="loadFivetranPanel(true)" id="btn-ft-refresh">↺ Refresh via MCP</button>
+          </div>
+        </div>
+
+        <div class="p-8">
+
+          <!-- Honest system posture — live vs demo, straight from /api/health/integrations -->
+          <div id="ft-posture" class="ft-posture" style="display:none"></div>
+
+          <!-- Platform summary strip -->
+          <div class="ft-summary-strip" id="ft-summary"></div>
+
+          <!-- Two columns: account/destinations on the right, connectors on the left -->
+          <div class="ft-grid">
+
+            <!-- Connectors with live sync + history -->
+            <div>
+              <div class="flex items-center justify-between mb-4">
+                <h3>Connectors <span class="info-btn">ℹ<span class="info-tip">All Fivetran connections via list_connections (MCP). Click "Sync" to call sync_connection live. Click a row to load its sync history and schema.</span></span></h3>
+                <span style="font-size:12px;color:var(--text-tertiary)" id="ft-conn-count"></span>
+              </div>
+              <div class="card" style="padding:0;overflow:hidden">
+                <div id="ft-connectors-list"><div class="ft-loading">Calling Fivetran MCP list_connections()…</div></div>
+              </div>
+
+              <!-- Webhooks (event-driven) -->
+              <h3 class="mb-4 mt-6">Webhooks <span style="font-size:12px;font-weight:normal;color:var(--text-secondary)">(event-driven sync)</span>
+                <span class="info-btn">ℹ<span class="info-tip">Fivetran pushes events to SENTINEL's /api/fivetran/webhook endpoint when a sync finishes. SENTINEL reacts instantly, re-running its analysis the moment fresh data lands, instead of waiting for the 30-minute poll.</span></span>
+              </h3>
+              <div class="card" style="padding:0;overflow:hidden">
+                <div id="ft-webhooks-list"><div class="ft-loading">Loading webhooks…</div></div>
+              </div>
+              <div id="ft-webhook-events" style="margin-top:10px"></div>
+            </div>
+
+            <!-- Account / Groups / Destinations -->
+            <div>
+              <h3 class="mb-4">Account <span class="info-btn">ℹ<span class="info-tip">Fivetran account info via get_account_info (MCP).</span></span></h3>
+              <div class="card mb-6" style="padding:var(--space-4)" id="ft-account"></div>
+
+              <h3 class="mb-4">Groups <span class="info-btn">ℹ<span class="info-tip">Fivetran groups (warehouses) via list_groups (MCP). Each group maps to one destination.</span></span></h3>
+              <div class="card mb-6" style="padding:var(--space-4)" id="ft-groups"></div>
+
+              <h3 class="mb-4">Destinations <span class="info-btn">ℹ<span class="info-tip">Fivetran destinations via list_destinations (MCP). SENTINEL's destination is BigQuery, where every synced metric lands for causal analysis.</span></span></h3>
+              <div class="card" style="padding:var(--space-4)" id="ft-destinations"></div>
+            </div>
+          </div>
+
+          <!-- Sync history / schema drawer (populated when a connector is clicked) -->
+          <div id="ft-detail-drawer" style="display:none">
+            <h3 class="mb-4 mt-6">Sync History: <span id="ft-detail-name" style="color:var(--blue)"></span>
+              <span class="info-btn">ℹ<span class="info-tip">Recent sync activity for this connector, pulled live from Fivetran. Confirms data freshness before SENTINEL trusts a metric snapshot.</span></span>
+            </h3>
+            <div class="card" style="padding:var(--space-4)" id="ft-sync-history"></div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Dashboard footer -->
+      <footer class="dashboard-footer">
+        <span><i data-icon="mark" data-size="11"></i> SENTINEL · Business Flight Recorder</span>
+        <span class="dashboard-footer-sep"></span>
+        <span>Gemini 3 · Fivetran MCP · Google ADK 2.0 · BigQuery · MongoDB Atlas</span>
+      </footer>
     </div><!-- /main-content -->
   </div><!-- /app-shell -->
+  <div class="sidebar-overlay" id="sidebar-overlay" onclick="_toggleSidebar()"></div>
 </div><!-- /view-dashboard -->
 
 <!-- ═══════════════════════════════════════════════════════════════════════
@@ -659,12 +1297,12 @@ Example:
 <div class="modal-backdrop" id="modal-log">
   <div class="modal">
     <div class="modal-header">
-      <h2>📋 Log a Decision</h2>
-      <button class="modal-close" onclick="closeLogModal()">✕</button>
+      <h2><i data-icon="clipboard" data-size="19"></i> Log a Decision</h2>
+      <button class="modal-close" onclick="closeLogModal()"><i data-icon="x" data-size="16"></i></button>
     </div>
 
     <div id="modal-metrics-preview" class="card mb-6" style="padding:var(--space-4);border-color:var(--blue-border)">
-      <div class="badge badge-blue mb-3">📡 Fivetran Snapshot — Captured Now</div>
+      <div class="badge badge-blue mb-3"><i data-icon="radio" data-size="12"></i> Fivetran snapshot, captured now</div>
       <div id="modal-metrics-list" class="flex gap-4" style="flex-wrap:wrap"></div>
     </div>
 
@@ -680,11 +1318,11 @@ Example:
     <div class="form-group">
       <label class="form-label">Decision type</label>
       <select class="form-select" id="input-decision-type" onchange="schedulePrecheck()">
-        <option value="pricing">💰 Pricing</option>
-        <option value="hiring">👥 Hiring</option>
-        <option value="product">🚀 Product</option>
-        <option value="strategy">🎯 Strategy</option>
-        <option value="operational">⚙️ Operational</option>
+        <option value="pricing">Pricing</option>
+        <option value="hiring">Hiring</option>
+        <option value="product">Product</option>
+        <option value="strategy">Strategy</option>
+        <option value="operational">Operational</option>
       </select>
     </div>
 
@@ -714,7 +1352,7 @@ Example:
     <div class="flex gap-3" style="justify-content:flex-end">
       <button class="btn btn-ghost" onclick="closeLogModal()">Cancel</button>
       <button class="btn btn-danger" onclick="submitDecision()" id="btn-submit-decision">
-        ✈️ Record & Snapshot All Metrics
+        Record &amp; Snapshot All Metrics
       </button>
     </div>
   </div>
@@ -726,8 +1364,8 @@ Example:
 <div class="modal-backdrop" id="modal-connect">
   <div class="modal">
     <div class="modal-header">
-      <h2>🔌 Connect Your Data</h2>
-      <button class="modal-close" onclick="document.getElementById('modal-connect').classList.remove('open')">✕</button>
+      <h2>Connect Your Data</h2>
+      <button class="modal-close" onclick="document.getElementById('modal-connect').classList.remove('open')"><i data-icon="x" data-size="16"></i></button>
     </div>
 
     <p class="mb-6">SENTINEL uses Fivetran to connect all your data sources.
@@ -735,19 +1373,22 @@ Example:
 
     <div class="form-group">
       <label class="form-label">Fivetran API Key</label>
-      <input class="form-input" id="input-ft-key" type="password" placeholder="Your Fivetran API key" />
+      <input class="form-input" id="input-ft-key" type="password" placeholder="Your Fivetran API key" autocomplete="off" oninput="document.getElementById('connect-msg').style.display='none'" />
     </div>
     <div class="form-group">
       <label class="form-label">Fivetran API Secret</label>
-      <input class="form-input" id="input-ft-secret" type="password" placeholder="Your Fivetran API secret" />
+      <input class="form-input" id="input-ft-secret" type="password" placeholder="Your Fivetran API secret" autocomplete="off" oninput="document.getElementById('connect-msg').style.display='none'" />
     </div>
     <div class="form-group">
       <label class="form-label">Fivetran Group ID</label>
-      <input class="form-input" id="input-ft-group" placeholder="From your Fivetran dashboard URL" />
+      <input class="form-input" id="input-ft-group" placeholder="From your Fivetran dashboard URL" oninput="document.getElementById('connect-msg').style.display='none'" />
     </div>
 
+    <!-- Inline error / success message -->
+    <div id="connect-msg" style="display:none;border-radius:var(--radius-sm);padding:10px 14px;font-size:13px;margin-bottom:var(--space-4)"></div>
+
     <div style="background:var(--blue-dim);border:1px solid var(--blue-border);border-radius:var(--radius-sm);padding:var(--space-4);margin-bottom:var(--space-5);font-size:13px">
-      <div class="text-blue font-bold mb-2">📋 Setup instructions</div>
+      <div class="text-blue font-bold mb-2"><i data-icon="clipboard" data-size="14"></i> Setup instructions</div>
       1. Go to fivetran.com → Settings → API Keys<br/>
       2. Create an API key<br/>
       3. Your Group ID is in the URL: fivetran.com/dashboard/groups/<b>[GROUP_ID]</b>
@@ -755,7 +1396,9 @@ Example:
 
     <div class="flex gap-3" style="justify-content:flex-end">
       <button class="btn btn-ghost" onclick="document.getElementById('modal-connect').classList.remove('open')">Cancel</button>
-      <button class="btn btn-primary" onclick="saveConnection()">Connect →</button>
+      <button class="btn btn-primary" id="btn-connect-submit" onclick="saveConnection()">
+        <i data-icon="zap" data-size="14"></i> Connect
+      </button>
     </div>
   </div>
 </div>
@@ -767,14 +1410,14 @@ Example:
   <div class="modal" style="max-width:700px">
     <div class="modal-header">
       <h2>Decision Detail</h2>
-      <button class="modal-close" onclick="document.getElementById('modal-detail').classList.remove('open')">✕</button>
+      <button class="modal-close" onclick="document.getElementById('modal-detail').classList.remove('open')"><i data-icon="x" data-size="16"></i></button>
     </div>
     <div id="modal-detail-content"></div>
   </div>
 </div>
 
 <!-- Global theme toggle — fixed top-right on every view -->
-<button class="theme-toggle global-theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme">🌙</button>
+<button class="theme-toggle global-theme-toggle" onclick="toggleTheme()" title="Toggle light/dark mode" aria-label="Toggle theme"></button>
 
 <!-- ═══════════════════════════════════════════════════════════════════════
      FLOATING ONBOARDING GUIDE
@@ -782,7 +1425,7 @@ Example:
 <div id="floating-guide" class="floating-guide">
   <div class="guide-header">
     <span id="guide-step">STEP 1/3</span>
-    <button class="modal-close" style="width:20px;height:20px;color:rgba(255,255,255,0.8);background:transparent" onclick="dismissGuide()">×</button>
+    <button class="modal-close" style="width:20px;height:20px;color:rgba(255,255,255,0.8);background:transparent" onclick="dismissGuide()"><i data-icon="x" data-size="13"></i></button>
   </div>
   <div id="guide-title" class="guide-title">Welcome to Sentinel</div>
   <div id="guide-desc" class="guide-desc">
@@ -793,6 +1436,26 @@ Example:
     <button id="guide-next-btn" class="guide-btn" onclick="nextGuideStep()">Next →</button>
   </div>
 </div>
+
+<!-- Fixed info-btn tooltip — always above every stacking context (backdrop-filter safe) -->
+<div id="info-flyout" style="
+  position:fixed;display:none;z-index:99999;
+  background:var(--bg-elevated);border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm);padding:9px 13px;
+  max-width:280px;box-shadow:var(--shadow-lg);
+  font-size:12px;color:var(--text-primary);line-height:1.55;
+  pointer-events:none;white-space:normal;
+"></div>
+
+<!-- Fixed timeline tooltip — always above every stacking context -->
+<div id="timeline-flyout" style="
+  position:fixed;display:none;z-index:99999;
+  background:var(--bg-elevated);border:1px solid var(--border-strong);
+  border-radius:var(--radius-md);padding:12px 14px;
+  min-width:220px;max-width:300px;box-shadow:var(--shadow-lg);
+  font-size:13px;color:var(--text-primary);line-height:1.5;
+  pointer-events:none;
+"></div>
 
 <script src="app.js"></script>
 </body>

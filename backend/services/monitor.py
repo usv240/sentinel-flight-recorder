@@ -15,7 +15,7 @@ The scheduler starts on app startup (registered in main.py).
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 log = logging.getLogger("sentinel.monitor")
@@ -101,8 +101,24 @@ async def run_monitoring_cycle():
                 log.warning(f"NEW WARNING: {w.get('message', '')[:100]}")
 
                 # ── Agent Action: auto-create action plan + send Slack alert ──
+                # 4-hour cooldown: don't spam identical actions every 30 min
                 if w.get("severity") in ("critical", "high"):
-                    action = await _take_autonomous_action(w, snapshot, mongodb)
+                    recent = await mongodb.get_recent_actions(limit=1)
+                    cooldown_ok = True
+                    if recent:
+                        last_ts = recent[0].get("created_at")
+                        if isinstance(last_ts, str):
+                            try:
+                                last_ts = datetime.fromisoformat(last_ts.replace("Z", "+00:00"))
+                            except Exception:
+                                last_ts = None
+                        elif isinstance(last_ts, datetime):
+                            if last_ts.tzinfo is None:
+                                last_ts = last_ts.replace(tzinfo=timezone.utc)
+                        if last_ts and (datetime.now(timezone.utc) - last_ts) < timedelta(hours=4):
+                            cooldown_ok = False
+                            log.info("Autonomous action cooldown active — skipping duplicate action")
+                    action = await _take_autonomous_action(w, snapshot, mongodb) if cooldown_ok else {}
                     if action:
                         actions_taken.append(action)
                         log.info(f"SENTINEL ACTION: {action.get('summary', '')[:80]}")

@@ -2,11 +2,20 @@
 SENTINEL ADK Agent — Google ADK 2.0 code-first agent.
 
 Uses google-adk with FunctionTools.
-Model: gemini-2.5-flash (Gemini 3 Flash when available) via Vertex AI.
+
+Model strategy (single source of truth shared with backend.services.gemini_client):
+- PRIMARY: Gemini 3 (gemini-3-flash-preview) via API key — Gemini 3 is API-key
+  only, so when a Gemini 3 model is selected the ADK runner is configured for
+  the API-key backend (GOOGLE_GENAI_USE_VERTEXAI=FALSE).
+- FALLBACK: Gemini 2.5 (gemini-2.5-flash / pro) via Vertex AI — used only if the
+  Gemini 3 run fails with a not-found / quota / availability error.
+
+run_agent_traced() reports the model it ACTUALLY used (after any fallback) so the
+UI and /api/health never claim a model that didn't run.
 
 Two agent paths exist in SENTINEL:
-- Agent Studio: visual reasoning trace (MCP HTTP endpoint)
-- ADK (this file): code-first, Gemini model, verifiable tool calls
+- Agent Studio / Agent Builder: MCP Streamable HTTP endpoint (backend/routes/mcp_http.py)
+- ADK (this file): code-first, verifiable multi-step tool calls
 
 Imported by backend/routes/agent_chat.py → POST /api/agent/chat.
 """
@@ -26,21 +35,63 @@ try:
 except ImportError:
     _ADK_AVAILABLE = False
 
-def _configure_adk():
-    """Configure ADK to use the right Gemini backend (Vertex AI or direct API key)."""
-    import os
+
+# Model tiers — imported from the shared Gemini client so the agent and the
+# direct-generation path can never drift apart. Hard-coded fallback mirrors
+# gemini_client in case it can't be imported (e.g. ADK-only smoke test).
+try:
+    from backend.services.gemini_client import (
+        get_gemini3_models,
+        get_vertex_fallback_models,
+        is_gemini3_model,
+    )
+    _GEMINI3_MODELS = get_gemini3_models()
+    _VERTEX_FALLBACK = get_vertex_fallback_models()
+except Exception:
+    _GEMINI3_MODELS = [
+        "gemini-3-flash-preview", "gemini-3.5-flash",
+        "gemini-3.1-flash-lite", "gemini-3.1-flash-lite-preview",
+    ]
+    _VERTEX_FALLBACK = ["gemini-2.5-pro", "gemini-2.5-flash"]
+
+    def is_gemini3_model(model: str) -> bool:  # noqa: F811
+        return model in _GEMINI3_MODELS
+
+
+def _primary_model() -> str:
+    """Configured model (env) or the Gemini 3 default — matches gemini_client."""
+    return os.getenv("GEMINI_MODEL", "").strip() or _GEMINI3_MODELS[0]
+
+
+def _fallback_model() -> str:
+    """Vertex AI model to retry with if the Gemini 3 run fails."""
+    return _VERTEX_FALLBACK[-1] if _VERTEX_FALLBACK else "gemini-2.5-flash"
+
+
+def _configure_adk_for_model(model: str):
+    """
+    Point the ADK / google-genai backend at the right place for `model`.
+
+    Gemini 3 → API-key backend (GOOGLE_GENAI_USE_VERTEXAI=FALSE).
+    Gemini 2.5 fallback → Vertex AI backend (uses GOOGLE_CLOUD_PROJECT).
+    Returns the model unchanged for convenience.
+    """
     project = os.getenv("GOOGLE_PROJECT_ID", "")
     api_key = os.getenv("GEMINI_API_KEY", os.getenv("GOOGLE_API_KEY", ""))
 
-    if project:
-        # Vertex AI mode — set env vars ADK looks for
+    if is_gemini3_model(model) and api_key:
+        # Gemini 3 is only reachable via the API-key backend.
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
+        os.environ["GOOGLE_API_KEY"] = api_key
+    elif project:
+        # Vertex AI backend for 2.5 fallback models.
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "TRUE"
         os.environ.setdefault("GOOGLE_CLOUD_PROJECT", project)
         os.environ.setdefault("GOOGLE_CLOUD_LOCATION", os.getenv("GOOGLE_LOCATION", "us-central1"))
     elif api_key:
-        # Direct API key mode (local dev)
-        os.environ.setdefault("GOOGLE_API_KEY", api_key)
-
-_configure_adk()
+        os.environ["GOOGLE_GENAI_USE_VERTEXAI"] = "FALSE"
+        os.environ["GOOGLE_API_KEY"] = api_key
+    return model
 
 SYSTEM_PROMPT = """You are SENTINEL — The Business Flight Recorder.
 
@@ -143,8 +194,8 @@ async def ask_about_decision_history(question: str) -> str:
 
 # ── Agent factory ─────────────────────────────────────────────────────────────
 
-def create_sentinel_agent() -> Optional[object]:
-    """Create the SENTINEL ADK agent with all tools."""
+def create_sentinel_agent(model: str) -> Optional[object]:
+    """Create the SENTINEL ADK agent with all tools, bound to `model`."""
     if not _ADK_AVAILABLE:
         return None
 
@@ -158,7 +209,7 @@ def create_sentinel_agent() -> Optional[object]:
         FunctionTool(func=ask_about_decision_history),
     ]
 
-    model = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+    _configure_adk_for_model(model)
 
     return Agent(
         name="SENTINEL",
@@ -169,41 +220,50 @@ def create_sentinel_agent() -> Optional[object]:
     )
 
 
-# Singleton runner — initialised once per process
-_runner: Optional[Runner] = None
+# Per-model singleton runners — one per model so a Gemini 3 → 2.5 fallback
+# doesn't rebuild the primary runner on every call.
+_runners: dict = {}
 _session_service: Optional[InMemorySessionService] = None
 
 
-def get_runner():
-    """Return singleton ADK runner. Initialised on first call."""
-    global _runner, _session_service
-    if _runner is not None:
-        return _runner, _session_service
+def get_runner(model: str):
+    """Return a cached ADK runner for `model`, building it on first use."""
+    global _runners, _session_service
+    if model in _runners:
+        return _runners[model], _session_service
 
-    agent = create_sentinel_agent()
+    agent = create_sentinel_agent(model)
     if agent is None:
         return None, None
 
-    _session_service = InMemorySessionService()
-    _runner = Runner(
-        agent=agent,
-        app_name="sentinel",
-        session_service=_session_service,
-    )
-    return _runner, _session_service
+    if _session_service is None:
+        _session_service = InMemorySessionService()
+    runner = Runner(agent=agent, app_name="sentinel", session_service=_session_service)
+    _runners[model] = runner
+    return runner, _session_service
 
 
 async def run_agent(message: str, session_id: str = "default") -> str:
-    """
-    Run the SENTINEL ADK agent. Returns the final text response.
-    ADK 2.0: session methods are async; Content/Part from google.genai.types.
-    """
-    if not _ADK_AVAILABLE:
-        return "ADK not available — install google-adk."
+    """Run the SENTINEL ADK agent. Returns just the final text response."""
+    result = await run_agent_traced(message, session_id=session_id)
+    return result["response"]
 
-    runner, session_service = get_runner()
+
+def _is_model_error(err: str) -> bool:
+    """True if the error looks like a model-availability / quota problem worth a fallback."""
+    e = err.lower()
+    return any(x in e for x in [
+        "not found", "404", "deprecated", "unavailable", "503",
+        "overloaded", "429", "resource_exhausted", "quota", "permission",
+        "use_vertexai", "api key", "invalid_argument",
+    ])
+
+
+async def _run_once(model: str, message: str, session_id: str) -> dict:
+    """Run the agent with a specific model. Raises on model/transport errors."""
+    runner, session_service = get_runner(model)
     if runner is None:
-        return "ADK agent could not be initialised."
+        raise RuntimeError("ADK agent could not be initialised.")
 
     # ADK 2.0: get_session and create_session are async coroutines
     session = await session_service.get_session(
@@ -216,15 +276,82 @@ async def run_agent(message: str, session_id: str = "default") -> str:
 
     content = Content(role="user", parts=[Part(text=message)])
     final_text = ""
+    tool_trace: list = []
 
     async for event in runner.run_async(
         user_id="user",
         session_id=session_id,
         new_message=content,
     ):
+        # Capture tool calls (function calls) and their responses as they stream
+        if getattr(event, "content", None) and getattr(event.content, "parts", None):
+            for part in event.content.parts:
+                fc = getattr(part, "function_call", None)
+                if fc is not None:
+                    tool_trace.append({
+                        "tool": getattr(fc, "name", "unknown"),
+                        "args": dict(getattr(fc, "args", {}) or {}),
+                        "ok": True,
+                    })
+                fr = getattr(part, "function_response", None)
+                if fr is not None and tool_trace:
+                    # Mark the most recent matching call as resolved
+                    resp = getattr(fr, "response", {}) or {}
+                    if isinstance(resp, dict) and resp.get("error"):
+                        tool_trace[-1]["ok"] = False
+
         if event.is_final_response() and event.content:
             for part in event.content.parts:
                 if hasattr(part, "text") and part.text:
                     final_text += part.text
 
-    return final_text or "No response generated."
+    return {
+        "response": final_text or "No response generated.",
+        "tool_trace": tool_trace,
+        "model": model,
+    }
+
+
+async def run_agent_traced(message: str, session_id: str = "default") -> dict:
+    """
+    Run the SENTINEL ADK agent and capture the FULL reasoning trace:
+    every tool the agent decided to call, in order, with its arguments.
+
+    Tries the configured Gemini 3 model first (via API key). If that run fails
+    with a model-availability / quota error, retries once on the Vertex AI 2.5
+    fallback. The returned "model" is the one that ACTUALLY produced the answer,
+    and "model_fallback" flags whether a fallback was used — so the UI and
+    /api/health never over-claim the model.
+
+    Returns: {"response", "tool_trace":[{"tool","args","ok"}...], "model", "model_fallback"}
+
+    This is what makes SENTINEL a multi-step agent rather than a chatbot — you
+    can watch Gemini autonomously chain list_connectors → trigger_sync →
+    get_metrics_snapshot → trace_causal_chain before it answers.
+    """
+    primary = _primary_model()
+    if not _ADK_AVAILABLE:
+        return {"response": "ADK not available — install google-adk.",
+                "tool_trace": [], "model": primary, "model_fallback": False}
+
+    try:
+        result = await _run_once(primary, message, session_id)
+        result["model_fallback"] = False
+        return result
+    except Exception as e:
+        primary_err = str(e)
+
+    # Fallback: retry once on Vertex AI 2.5 if the failure looks model-related.
+    fallback = _fallback_model()
+    if fallback != primary and _is_model_error(primary_err):
+        try:
+            result = await _run_once(fallback, message, session_id)
+            result["model_fallback"] = True
+            result["primary_model_error"] = primary_err[:200]
+            return result
+        except Exception as e2:
+            return {"response": f"Agent failed on both {primary} and {fallback}: {e2}",
+                    "tool_trace": [], "model": fallback, "model_fallback": True}
+
+    return {"response": f"Agent error on {primary}: {primary_err}",
+            "tool_trace": [], "model": primary, "model_fallback": False}

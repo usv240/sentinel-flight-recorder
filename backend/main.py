@@ -11,7 +11,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http, agent_chat, custom_analysis, slack_events
+from .routes import decisions, warnings, trace, connectors, demo, ask, transcript, toolcalls, mcp_http, agent_chat, custom_analysis, slack_events, fivetran_webhook
 # Slack client — initialised lazily, non-fatal if not configured
 from .services.monitor import start_scheduler, stop_scheduler, get_last_cycle_status, run_monitoring_cycle
 
@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     # expose Swagger only in dev
     openapi_url="/api/openapi.json" if os.getenv("APP_ENV") == "development" else None,
-    title="SENTINEL — The Business Flight Recorder",
+    title="SENTINEL: The Business Flight Recorder",
     description="The first flight recorder for human business decisions. Powered by Gemini 3, Fivetran MCP, and Google Cloud Agent Builder.",
     version="2.0.0",
     lifespan=lifespan,
@@ -102,11 +102,13 @@ app.include_router(mcp_http.router,    prefix="/api/mcp",         tags=["mcp"])
 app.include_router(agent_chat.router,       prefix="/api/agent",    tags=["agent"])
 app.include_router(custom_analysis.router, prefix="/api/custom",   tags=["custom"])
 app.include_router(slack_events.router,    prefix="/api/slack",    tags=["slack"])
+app.include_router(fivetran_webhook.router, prefix="/api/fivetran", tags=["fivetran"])
 
 
 @app.get("/api/health")
 async def health():
     from .services.mcp_client import get_recent_tool_calls
+    from .services.gemini_client import get_configured_model, get_active_model, gemini3_quota_exhausted
     from .db.mongodb import get_db
     cycle = get_last_cycle_status()
 
@@ -122,7 +124,11 @@ async def health():
         "status": "ok",
         "service": "SENTINEL",
         "version": "2.0.0",
-        "gemini_model": os.getenv("GEMINI_MODEL_ACTIVE") or os.getenv("GEMINI_MODEL", "gemini-3-flash-preview"),
+        # Honest model reporting: configured = what we prefer; active = what last
+        # actually ran a successful call; fallback flag = Gemini 3 quota exhausted.
+        "gemini_model": get_active_model(),
+        "gemini_model_configured": get_configured_model(),
+        "gemini3_quota_exhausted": gemini3_quota_exhausted(),
         "demo_mode": os.getenv("DEMO_MODE", "true").lower() == "true",
         "mongodb": "connected" if mongo_ok else "unreachable",
         "monitor": {
@@ -133,6 +139,18 @@ async def health():
         },
         "mcp_calls_logged": len(get_recent_tool_calls()),
     }
+
+
+@app.get("/api/health/integrations")
+async def health_integrations():
+    """
+    Honest, per-integration liveness report: Gemini, Fivetran, BigQuery,
+    MongoDB, ADK and Slack — each tagged live / configured / demo / error.
+    This is SENTINEL telling the truth about its own wiring; nothing here is
+    cosmetic. See backend/services/diagnostics.py.
+    """
+    from .services.diagnostics import gather_integration_status
+    return await gather_integration_status()
 
 
 @app.get("/api/monitor/status")
