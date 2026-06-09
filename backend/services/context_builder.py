@@ -217,4 +217,5 @@ def _demo_snapshot(scenario: str) -> Dict[str, Any]:
             ],
         },
     }
+    snapshots["qwikster"] = snapshots["qwikster_baseline"]
     return snapshots.get(scenario, snapshots["acmesaas_live"])

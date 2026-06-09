@@ -319,32 +319,37 @@ async def run_precheck(
             pass
 
     blocking_conditions = _check_metric_conditions(snapshot, decision_type)
+    # Include any snapshot flags (survey data, trend warnings) as blocking conditions
+    for flag in snapshot.get("_flags", []):
+        blocking_conditions.append(flag)
     pattern_matches = _match_historical_patterns(snapshot, decision_type)
     risk_score = _calculate_risk_score(blocking_conditions, pattern_matches)
     level = _risk_level(risk_score)
     alternatives = _build_alternatives(decision_type, snapshot)
 
-    # Generate Gemini recommendation for the specific decision text
+    # Always run Gemini so the decision text itself is evaluated
     gemini_advice = ""
-    if level in ("high", "medium"):
-        try:
-            from .gemini_client import generate
-            prompt = f"""You are SENTINEL. A business decision is being evaluated before logging.
+    try:
+        from .gemini_client import generate
+        flags_text = "\n".join(f"- {f}" for f in snapshot.get("_flags", [])) or "- None"
+        prompt = f"""You are SENTINEL. A business decision is being evaluated before logging.
 
 DECISION: "{decision_text}"
 DECISION TYPE: {decision_type}
 RISK SCORE: {risk_score:.0%} ({level.upper()} RISK)
 BLOCKING CONDITIONS:
 {chr(10).join(f'- {c}' for c in blocking_conditions) or '- None'}
+DATA FLAGS (signals present in the business at decision time):
+{flags_text}
 HISTORICAL MATCHES: {len(pattern_matches)} pattern(s) found
-MOST DANGEROUS PATTERN: {pattern_matches[0]['description'] if pattern_matches else 'None'} ({pattern_matches[0]['frequency']:.0%} historical failure rate if pattern[0] matches)
+MOST DANGEROUS PATTERN: {pattern_matches[0]['description'] if pattern_matches else 'None'}
 
 Write ONE sentence: the most important thing the decision-maker should know before proceeding.
-Be specific. Reference the exact decision text and exact metrics. No hedging."""
+Be specific. Reference the exact decision text and the most critical flag or metric. No hedging."""
 
-            gemini_advice = await generate(prompt)
-        except Exception as e:
-            log.error(f"Gemini precheck advice failed: {e}")
+        gemini_advice = await generate(prompt)
+    except Exception as e:
+        log.error(f"Gemini precheck advice failed: {e}")
 
     # Estimated ARR impact from worst matching pattern
     worst_pattern = pattern_matches[0] if pattern_matches else {}
