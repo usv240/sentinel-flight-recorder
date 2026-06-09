@@ -245,11 +245,14 @@ def _calculate_risk_score(blocking_conditions: list, pattern_matches: list) -> f
     score = 0.0
 
     # Conditions contribute to risk
+    _strong_signals = ("unacceptable", "declining", "slowing", "rejection", "spike", "surge", "critical")
     for c in blocking_conditions:
         if "CRITICAL" in c:
             score += 0.35
         elif "warning" in c.lower() or "elevated" in c.lower():
             score += 0.20
+        elif any(kw in c.lower() for kw in _strong_signals):
+            score += 0.25
         else:
             score += 0.10
 
